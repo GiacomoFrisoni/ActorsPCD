@@ -13,6 +13,7 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import pcd.ass03.gameoflife.messages.CellNextStateMsg;
+import pcd.ass03.gameoflife.messages.GenerationResultsMsg;
 import pcd.ass03.gameoflife.messages.NeighboursMsg;
 import pcd.ass03.gameoflife.messages.SetStateMsg;
 
@@ -25,6 +26,7 @@ public class GridActor extends AbstractActorWithStash {
 	private final int width;
 	private final int height;
 	private final Map<Point, ActorRef> cellsActorsMap;
+	private final ActorRef view;
 	
 	private boolean notYetStarted;
 	private final Map<Point, Boolean> calculatedGeneration;
@@ -43,8 +45,8 @@ public class GridActor extends AbstractActorWithStash {
 	 * 		the height of the grid to be passed to the actor's constructor.
 	 * @return a Props for creating grid actor, which can then be further configured
 	 */
-	public static Props props(final int width, final int height) {
-		return Props.create(GridActor.class, width, height);
+	public static Props props(final int width, final int height, final ActorRef view) {
+		return Props.create(GridActor.class, width, height, view);
 	}
 	
 	/**
@@ -55,15 +57,19 @@ public class GridActor extends AbstractActorWithStash {
 	 * @param height
 	 * 		the height of the grid
 	 */
-	public GridActor(final int width, final int height) {
+	public GridActor(final int width, final int height, final ActorRef view) {
 		this.width = width;
 		this.height = height;
 		this.cellsActorsMap = new HashMap<>();
+		
+		this.view = view;
 		
 		this.notYetStarted = true;
 		this.calculatedGeneration = new HashMap<>();
 		
 		this.log = Logging.getLogger(getContext().getSystem(), this);
+		
+		
 		
 		this.pausedBehavior = receiveBuilder()
 				.matchEquals("play", msg -> {
@@ -85,13 +91,7 @@ public class GridActor extends AbstractActorWithStash {
 					// If all the states of the current generation are computed...
 					if (this.calculatedGeneration.size() == this.cellsActorsMap.size()) {
 						// Notify the actor view
-						for (int y = 0; y < this.height; y++) {
-							for (int x = 0; x < this.width; x++) {
-								System.out.print(this.calculatedGeneration.get(new Point(x, y)) ? "O " : "X ");
-							}
-							System.out.println();
-						}
-						System.out.println();
+						this.view.tell(new GenerationResultsMsg(new HashMap<Point, Boolean>(this.calculatedGeneration), 0, 0), ActorRef.noSender());
 						// Prepares and starts the computation for the new generation
 						this.calculatedGeneration.clear();
 						this.cellsActorsMap.values().forEach(cellRef -> cellRef.tell("prepareNextGeneration", ActorRef.noSender()));
@@ -131,13 +131,7 @@ public class GridActor extends AbstractActorWithStash {
 		// Sends neighbors to each cell
 		this.cellsActorsMap.forEach((cellPos, cellRef) ->
 			cellRef.tell(new NeighboursMsg(getCellNeighbours(cellPos)), ActorRef.noSender()));
-		// Initializes as alive at most the half of the cells
-		/*
-		for (int i = 0; i < this.cellsActorsMap.size()/2; i++) {
-			final int randomCellX = ThreadLocalRandom.current().nextInt(this.width);
-			final int randomCellY = ThreadLocalRandom.current().nextInt(this.height);
-			this.cellsActorsMap.get(new Point(randomCellX, randomCellY)).tell(new SetStateMsg(true), ActorRef.noSender());
-		}*/
+		// Initializes the cells with a random state
 		this.cellsActorsMap.values().forEach(cellRef ->
 			cellRef.tell(new SetStateMsg(ThreadLocalRandom.current().nextBoolean()), ActorRef.noSender()));
 	}
