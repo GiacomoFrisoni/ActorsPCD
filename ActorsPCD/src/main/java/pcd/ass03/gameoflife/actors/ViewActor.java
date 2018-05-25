@@ -15,49 +15,28 @@ import pcd.ass03.gameoflife.view.ViewDataManager;
 
 /**
  * This actor represents a view for the Conway's Game Of Life.
+ * 
  */
 public class ViewActor extends AbstractActor {
 	
 	private static final long DEFAULT_REFRESH_RATE_MILLIS = 2000; 
 	
-	private int width;
-	private int height;
 	private ActorRef scheduler;
 	private final View view;
 	
 	private final Deque<GenerationResultsMsg> generationsNotShown;
 	
 	private final LoggingAdapter log;
-	private Receive initializingBehavior;
 	private Receive pausedBehavior;
 	private Receive playingBehavior;
 	
 	
 	/**
-	 * This message initializes the view.
-	 */
-	public static final class InitViewMsg {
-		private final int width;
-		private final int height;
-		
-		public InitViewMsg(final int width, final int height) {
-			this.width = width;
-			this.height = height;
-		}
-		
-		public int getWidth() {
-			return this.width;
-		}
-		
-		public int getHeight() {
-			return this.height;
-		}
-	}
-	
-	/**
 	 * This message allows to start the game visualization.
 	 */
 	public static final class StartVisualizationMsg { }
+	
+	public static final class StopVisualizationMsg { }
 	
 	/**
 	 * This message contains the results of a generation that must be displayed.
@@ -99,6 +78,18 @@ public class ViewActor extends AbstractActor {
 		}
 	}
 	
+	public static final class ChangeRefreshRateMsg {
+		private final int refreshRate;
+		
+		public ChangeRefreshRateMsg(final int refreshRate) {
+			this.refreshRate = refreshRate;
+		}
+		
+		public int getRefreshRate() {
+			return this.refreshRate;
+		}
+	}
+	
 	
 	/**
 	 * Creates Props for a view actor.
@@ -119,23 +110,15 @@ public class ViewActor extends AbstractActor {
 		
 		this.log = Logging.getLogger(getContext().getSystem(), this);
 		
-		this.initializingBehavior = receiveBuilder()
-				.match(InitViewMsg.class, msg -> {
-					// Initializes the fields
-					this.width = msg.getWidth();
-					this.height = msg.getHeight();
-					// Goes into paused state in which the visualization can be started
-					getContext().become(this.pausedBehavior);
-				})
-				.matchAny(msg -> log.info("Received unknown message: " + msg))
-				.build();
-		
 		this.pausedBehavior = receiveBuilder()
 				.match(StartVisualizationMsg.class, msg -> {
 					// Starts the scheduling
 					this.scheduler.tell(new SchedulerActor.StartSchedulerMsg(), ActorRef.noSender());
 					// Goes into playing state
 					getContext().become(this.playingBehavior);
+				})
+				.match(ChangeRefreshRateMsg.class, msg -> {
+					this.scheduler.tell(new SchedulerActor.ChangeRateMsg(msg.refreshRate), ActorRef.noSender());
 				})
 				.match(GenerationResultsMsg.class, msg -> this.generationsNotShown.add(msg))
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
@@ -150,9 +133,6 @@ public class ViewActor extends AbstractActor {
 					if (this.generationsNotShown.size() > 0) {
 						final GenerationResultsMsg res = this.generationsNotShown.pop();
 						// Shows results
-			            
-			            
-						//NEW
 						this.view.drawCells(res.generationComputed);
 						ViewDataManager.getInstance().setGeneration(res.getGenerationNumber());
 						ViewDataManager.getInstance().setAliveCells(res.getNumberOfAliveCells());
@@ -160,7 +140,15 @@ public class ViewActor extends AbstractActor {
 						ViewDataManager.getInstance().setAvgElapsedTime(res.getAverageTime());
 					}
 				})
-				.matchEquals("pause", msg -> getContext().become(this.pausedBehavior))
+				.match(ChangeRefreshRateMsg.class, msg -> {
+					this.scheduler.tell(new SchedulerActor.ChangeRateMsg(msg.refreshRate), ActorRef.noSender());
+				})
+				.match(StopVisualizationMsg.class, msg -> {
+					// Stops scheduling
+					this.scheduler.tell(new SchedulerActor.StopSchedulerMsg(), ActorRef.noSender());
+					// Goes into paused state
+					getContext().become(this.pausedBehavior);
+				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
 	}
@@ -173,7 +161,7 @@ public class ViewActor extends AbstractActor {
 	
 	@Override
 	public Receive createReceive() {
-		return this.initializingBehavior;
+		return this.pausedBehavior;
 	}
 	
 }

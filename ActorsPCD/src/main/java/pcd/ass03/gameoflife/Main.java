@@ -28,7 +28,6 @@ public class Main extends Application {
 		view.setViewActor(viewActor);
 		view.show();
 		
-		viewActor.tell(new ViewActor.InitViewMsg(5, 5), ActorRef.noSender());
 		gridActor.tell(new GridActor.InitGridMsg(5, 5, viewActor), ActorRef.noSender());
 		viewActor.tell(new ViewActor.StartVisualizationMsg(), ActorRef.noSender());
 		gridActor.tell(new GridActor.StartGameMsg(), ActorRef.noSender());
