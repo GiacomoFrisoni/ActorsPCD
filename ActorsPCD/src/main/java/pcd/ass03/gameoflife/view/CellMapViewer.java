@@ -93,7 +93,7 @@ public class CellMapViewer extends BorderPane {
 	private void draw() {
 		if (cells != null) {
 			//TODO elimiate this
-			setDimension(new Dimension(4, 4));
+			setDimension(new Dimension(5, 5));
 			
 			final int xStartPos = xPos * drawableXCells;
 			final int yStartPos = yPos * drawableYCells;		

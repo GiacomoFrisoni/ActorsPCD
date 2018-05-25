@@ -150,6 +150,9 @@ public class ViewActor extends AbstractActor {
 					if (this.generationsNotShown.size() > 0) {
 						final GenerationResultsMsg res = this.generationsNotShown.pop();
 						// Shows results
+			            
+			            
+						//NEW
 						this.view.drawCells(res.generationComputed);
 						ViewDataManager.getInstance().setGeneration(res.getGenerationNumber());
 						ViewDataManager.getInstance().setAliveCells(res.getNumberOfAliveCells());

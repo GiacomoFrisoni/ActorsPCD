@@ -138,14 +138,27 @@ public class GridActor extends AbstractActorWithStash {
 					this.cellsActorsMap.forEach((cellPos, cellRef) ->
 						cellRef.tell(new CellActor.NeighboursMsg(getCellNeighbours(cellPos)), ActorRef.noSender()));
 					// Initializes the cells with a random state
-					this.cellsActorsMap.forEach((cellPos, cellRef) -> {
+					/*this.cellsActorsMap.forEach((cellPos, cellRef) -> {
 						final boolean randomState = ThreadLocalRandom.current().nextBoolean();
 						if (randomState) {
 							this.nAliveCells++;
 						}
 						this.calculatedGeneration.put(cellPos, randomState);
 						cellRef.tell(new CellActor.SetStateMsg(randomState), ActorRef.noSender());
+					});*/
+					
+					this.cellsActorsMap.forEach((cellPos, cellRef) -> {
+						boolean randomState = false;//ThreadLocalRandom.current().nextBoolean();
+						
+						if (cellPos.equals(new Point(2,1)) || cellPos.equals(new Point(2,2)) || cellPos.equals(new Point(2,3))) {
+							randomState = true;
+							this.nAliveCells++;
+						}
+						
+						this.calculatedGeneration.put(cellPos, randomState);				
+						cellRef.tell(new CellActor.SetStateMsg(randomState), ActorRef.noSender());
 					});
+				
 					
 					// Notify the actor view with the initialized grid
 					this.view.tell(new ViewActor.GenerationResultsMsg(
@@ -201,10 +214,25 @@ public class GridActor extends AbstractActorWithStash {
 								elapsedTime,
 								this.averageTime,
 								this.nAliveCells), ActorRef.noSender());
+						
+						for (int y = 0; y < this.height; y++) {
+				              for (int x = 0; x < this.width; x++) {
+				                System.out.print(calculatedGeneration.get(new Point(x, y)) ? "O " : "X ");
+				              }
+				              System.out.println();
+				            }
+				            System.out.println();
+				            
+				            
 						// Prepares and starts the computation for the new generation
 						this.calculatedGeneration.clear();
 						this.nAliveCells = 0;
 						this.timer.start();
+					
+						
+						System.out.println("");
+						System.out.println("Finished " + (nGenerations - 1) + " generation");
+						System.out.println("------------------------------------------------------");
 						this.cellsActorsMap.values().forEach(cellRef -> cellRef.tell(new PrepareNextGenerationMsg(), ActorRef.noSender()));
 						this.cellsActorsMap.values().forEach(cellRef -> cellRef.tell(new ComputeMsg(getSelf()), ActorRef.noSender()));
 					}
