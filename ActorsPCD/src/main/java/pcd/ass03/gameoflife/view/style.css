@@ -1,0 +1,88 @@
+* {
+	/* Some general colors */
+	/* I must use the "suppress warning" 'cos the default JavaFX CSS editor is a little stupid */
+	
+	/*@SuppressWarning*/ backgroundColor: rgb(60,60,60);
+	/*@SuppressWarning*/ backgroundColorDark: derive(backgroundColor, -10%);
+	
+	/*@SuppressWarning*/ buttonColor: #454545;
+	/*@SuppressWarning*/ buttonColorHover: derive(buttonColor, +15%);
+	/*@SuppressWarning*/ buttonColorPressed: derive(buttonColorHover, +15%);
+	
+	/*@SuppressWarning*/ progressColor: #4286f4;
+	
+}
+
+CellMap, .cell-mapm .stack-pane {
+	-fx-background-color: red;
+}
+
+.root {
+	-fx-background-color: backgroundColor;
+}
+
+#menuPanelContainer {
+	-fx-background-color: backgroundColorDark;
+}
+
+#cellMapContainer {
+	-fx-border-color: white;
+}
+
+.label {
+	-fx-text-fill: white;
+}
+
+#titleLabel {
+	-fx-font-size: 20;
+	-fx-padding: 0 0 10 0;
+}
+
+.progress-bar {
+	-fx-border-width: 0;
+}
+
+#errorLabel {
+	-fx-text-fill: red;
+	-fx-font-style: italic;
+}
+
+
+.button {
+    -fx-padding: 5 22 5 22;   
+    -fx-border-color: #e2e2e2;
+    -fx-border-width: 1;
+    -fx-background-radius: 0;
+    -fx-background-color: buttonColor;
+    -fx-text-fill: white;
+}
+
+.button:hover {
+    -fx-background-color: buttonColorHover;
+}
+
+.button:pressed, .button:default:hover:pressed {
+  -fx-background-color: buttonColorPressed;
+}
+
+#arrowButton {
+	-fx-border-width: 0;
+	-fx-padding: 5 5 5 5;
+}
+
+.progress-bar > .bar {
+	-fx-background-color: progressColor;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-radius: 0;
+    -fx-padding: 0.20em;
+}
+
+.progress-bar > .track {
+	-fx-background-color: lightgray;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-radius: 0;
+}

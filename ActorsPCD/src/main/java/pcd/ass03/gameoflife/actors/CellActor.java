@@ -9,15 +9,10 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import pcd.ass03.gameoflife.messages.CellNextStateMsg;
-import pcd.ass03.gameoflife.messages.NeighbourNextStateMsg;
-import pcd.ass03.gameoflife.messages.NeighbourStateMsg;
-import pcd.ass03.gameoflife.messages.NeighboursMsg;
-import pcd.ass03.gameoflife.messages.SetStateMsg;
 
 /**
  * This actor represents a cell for the Conway's Game Of Life.
- *
+ * With the adopted solution, the generation completion requires N + 1 messages for each cell.
  */
 public class CellActor extends AbstractActorWithStash {
 	
@@ -41,7 +36,95 @@ public class CellActor extends AbstractActorWithStash {
 	
 	
 	/**
-	 * Create Props for a cell actor.
+	 * This message allows to define the neighbors of the cell.
+	 */
+	public static final class NeighboursMsg {
+		private final Set<ActorRef> neighbours;
+		
+		public NeighboursMsg(final Set<ActorRef> neighbours) {
+			this.neighbours = new HashSet<>(neighbours);
+		}
+		
+		public Set<ActorRef> getNeighbours() {
+			return this.neighbours;
+		}
+	}
+	
+	/**
+	 * This message allows to set the cell state during the initialization.
+	 */
+	public static final class SetStateMsg {
+		private final boolean state;
+		
+		public SetStateMsg(final boolean state) {
+			this.state = state;
+		}
+		
+		public boolean getState() {
+			return this.state;
+		}
+	}
+	
+	/**
+	 * This message allows to prepare a new generation.
+	 *
+	 */
+	public static final class PrepareNextGenerationMsg { }
+	
+	/**
+	 * This message requests the cell computation for the current generation.
+	 */
+	public static final class ComputeMsg {
+		private final ActorRef sender;
+		
+		public ComputeMsg(final ActorRef sender) {
+			this.sender = sender;
+		}
+		
+		public ActorRef getSender() {
+			return this.sender;
+		}
+	}
+	
+	/**
+	 * This message represents the state of a neighbor cell.
+	 */
+	public static final class NeighbourStateMsg {
+		private final boolean neighbourState;
+		
+		public NeighbourStateMsg(final boolean neighbourState) {
+			this.neighbourState = neighbourState;
+		}
+		
+		public boolean getNeighbourState() {
+			return this.neighbourState;
+		}
+	}
+
+	/**
+	 * This message represents the state informations of a neighbor cell after its computation.
+	 */
+	public static final class NeighbourNextStateMsg {
+		private final boolean nextState;
+		private final boolean isChanged;
+		
+		public NeighbourNextStateMsg(final boolean nextState, final boolean isChanged) {
+			this.nextState = nextState;
+			this.isChanged = isChanged;
+		}
+		
+		public boolean getNeighbourNextState() {
+			return this.nextState;
+		}
+		
+		public boolean isNeighbourStateChanged() {
+			return this.isChanged;
+		}
+	}
+
+	
+	/**
+	 * Creates Props for a cell actor.
 	 * 
 	 * @param x
 	 * 		the x coordinate of the cell to be passed to the actor's constructor.
@@ -54,7 +137,7 @@ public class CellActor extends AbstractActorWithStash {
 	}
 	
 	/**
-	 * Creates a new cell actor.
+	 * Creates a cell actor.
 	 * 
 	 * @param x
 	 * 		the x coordinate of the cell
@@ -78,54 +161,60 @@ public class CellActor extends AbstractActorWithStash {
 		
 		this.initializingBehavior = receiveBuilder()
 				.match(NeighboursMsg.class, neighboursMsg -> {
+					// Saves the neighbors
 					this.neighbours.clear();
 					this.neighbours.addAll(neighboursMsg.getNeighbours());
-					// The cell knows its neighbors...
+					// Enters in a state in which it knows its neighbors...
 					getContext().become(receiveBuilder()
-							// Now it can notify its state or it can be notified by a neighbor
+							// With the neighbors knowledge, the cell can notify its initialization state...
 							.match(SetStateMsg.class, stateMsg -> {
 								this.nextState = stateMsg.getState();
-								this.neighbours.forEach(n -> n.tell(new NeighbourStateMsg(this.nextState), getSelf()));
+								this.neighbours.forEach(n -> n.tell(new NeighbourStateMsg(this.nextState), ActorRef.noSender()));
 								// If the state is configured and all the neighbors have been notified, initialization is complete...
 								if (this.arrivedNeighboursStates == N_NEIGHBOURS) {
 									unstashAll();
 									getContext().become(this.activeBehavior);
 								} else {
-									// ... Otherwise changes the behavior: once its state has been set, it can no longer be changed
+									// ... Otherwise changes the behavior: once its state has been set, it can no longer be changed directly
 									getContext().become(receiveBuilder()
 											.match(NeighbourStateMsg.class, neighbourMsg -> {
 												this.arrivedNeighboursStates++;
 												if (neighbourMsg.getNeighbourState()) {
 													this.nextAliveNeighbours++;
 												}
+												// Checks if the initialization is completed
 												if (this.arrivedNeighboursStates == N_NEIGHBOURS) {
 													unstashAll();
 													getContext().become(this.activeBehavior);
 												}
 											})
-											.matchEquals("prepareNextGeneration", msg -> stash())
-											.matchEquals("compute", msg -> stash())
+											.match(PrepareNextGenerationMsg.class, msg -> stash())
+											.match(ComputeMsg.class, msg -> stash())
+											.match(NeighbourNextStateMsg.class, msg -> stash())
 											.matchAny(msg -> this.log.info("Received unknown message: " + msg))
 											.build());
 								}
 							})
+							// ... Or it can be notified by a neighbor
 							.match(NeighbourStateMsg.class, neighbourMsg -> {
 								this.arrivedNeighboursStates++;
 								if (neighbourMsg.getNeighbourState()) {
 									this.nextAliveNeighbours++;
 								}
 							})
-							.matchEquals("prepareNextGeneration", msg -> stash())
-							.matchEquals("compute", msg -> stash())
+							.match(PrepareNextGenerationMsg.class, msg -> stash())
+							.match(ComputeMsg.class, msg -> stash())
+							.match(NeighbourNextStateMsg.class, msg -> stash())
 							.matchAny(msg -> this.log.info("Received unknown message: " + msg))
 							.build());
 				})
-				.matchAny(msg -> this.log.info("Received unknown message: " + msg))
+				.match(NeighbourNextStateMsg.class, msg -> stash())
+				.matchAny(msg -> this.log.info("0 Received unknown message: " + msg))
 				.build();
 		
 		this.activeBehavior = receiveBuilder()
-				.matchEquals("prepareNextGeneration", nextMsg -> {
-					// Resets
+				.match(PrepareNextGenerationMsg.class, nextMsg -> {
+					// Resets data
 					this.arrivedNeighboursStates = 0;
 					this.stateChanged = false;
 					this.nArrivedNextStateNeighbours = 0;
@@ -134,8 +223,9 @@ public class CellActor extends AbstractActorWithStash {
 					this.aliveNeighbours = this.nextAliveNeighbours;
 					unstashAll();
 					getContext().become(receiveBuilder()
-							.matchEquals("compute", computeMsg -> {
+							.match(ComputeMsg.class, computeMsg -> {
 								this.stateChanged = false;
+								// Considers the next state as unchanged by default
 								this.nextState = this.state;
 								// Evaluates an update only if necessary
 								if (this.state || (!this.state && this.aliveNeighbours > 0)) {
@@ -153,14 +243,17 @@ public class CellActor extends AbstractActorWithStash {
 								}
 								
 								// Sends the result for the current generation
-								getSender().tell(new CellNextStateMsg(new Point(this.x, this.y), this.nextState), ActorRef.noSender());
+								computeMsg.getSender().tell(new GridActor.CellNextStateMsg(new Point(this.x, this.y), this.nextState), ActorRef.noSender());
 								
+								// Sends the computed state to the neighbors (even if unchanged)
 								this.neighbours.forEach(n -> n.tell(new NeighbourNextStateMsg(this.nextState, this.stateChanged), ActorRef.noSender()));
 								
+								// The computation of a cell is completed if its next state and that of the neighbors have been determined
 								if (this.nArrivedNextStateNeighbours == N_NEIGHBOURS) {
 									unstashAll();
 									getContext().become(this.activeBehavior);
 								} else {
+									// Waits for the completion of the neighboring cells computation
 									getContext().become(receiveBuilder()
 											.match(NeighbourNextStateMsg.class, stateMsg -> {
 												this.nArrivedNextStateNeighbours++;
@@ -172,9 +265,9 @@ public class CellActor extends AbstractActorWithStash {
 													getContext().become(this.activeBehavior);
 												}
 											})
-											.matchEquals("prepareNextGeneration", msg -> stash())
-											.matchEquals("compute", msg -> stash())
-											.matchAny(msg -> this.log.info("Received unknown message: " + msg))
+											.match(PrepareNextGenerationMsg.class, msg -> stash())
+											.match(ComputeMsg.class, msg -> stash())
+											.matchAny(msg -> this.log.info("1 Received unknown message: " + msg))
 											.build());
 								}
 							})
@@ -184,13 +277,13 @@ public class CellActor extends AbstractActorWithStash {
 									this.nextAliveNeighbours += stateMsg.getNeighbourNextState() ? 1 : -1;
 								}
 							})
-							.matchEquals("prepareNextGeneration", msg -> stash())
-							.matchAny(msg -> this.log.info("Received unknown message: " + msg))
+							.match(PrepareNextGenerationMsg.class, msg -> stash())
+							.matchAny(msg -> this.log.info("2 Received unknown message: " + msg))
 							.build());
 				})
-				.matchEquals("compute", msg -> stash())
+				.match(ComputeMsg.class, msg -> stash())
 				.match(NeighbourNextStateMsg.class, msg -> stash())
-				.matchAny(msg -> this.log.info("Received unknown message: " + msg))
+				.matchAny(msg -> this.log.info("3 Received unknown message: " + msg))
 				.build();
 	}
 	

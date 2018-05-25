@@ -1,80 +1,160 @@
 package pcd.ass03.gameoflife.actors;
 
 import java.awt.Point;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.Map;
 
-import akka.actor.AbstractActorWithStash;
+import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import pcd.ass03.gameoflife.messages.GenerationResultsMsg;
-import pcd.ass03.gameoflife.messages.TickMsg;
+import pcd.ass03.gameoflife.view.View;
+import pcd.ass03.gameoflife.view.ViewDataManager;
 
-public class ViewActor extends AbstractActorWithStash {
+/**
+ * This actor represents a view for the Conway's Game Of Life.
+ */
+public class ViewActor extends AbstractActor {
 	
 	private static final long DEFAULT_REFRESH_RATE_MILLIS = 2000; 
 	
-	private final int width;
-	private final int height;
+	private int width;
+	private int height;
 	private ActorRef scheduler;
-
-	private int nGenerationNotShown;
+	private final View view;
+	
+	private final Deque<GenerationResultsMsg> generationsNotShown;
 	
 	private final LoggingAdapter log;
+	private Receive initializingBehavior;
 	private Receive pausedBehavior;
 	private Receive playingBehavior;
 	
+	
 	/**
-	 * Create Props for a view actor.
+	 * This message initializes the view.
+	 */
+	public static final class InitViewMsg {
+		private final int width;
+		private final int height;
+		
+		public InitViewMsg(final int width, final int height) {
+			this.width = width;
+			this.height = height;
+		}
+		
+		public int getWidth() {
+			return this.width;
+		}
+		
+		public int getHeight() {
+			return this.height;
+		}
+	}
+	
+	/**
+	 * This message allows to start the game visualization.
+	 */
+	public static final class StartVisualizationMsg { }
+	
+	/**
+	 * This message contains the results of a generation that must be displayed.
+	 */
+	public static final class GenerationResultsMsg {
+		private final int generationNumber;
+		private final Map<Point, Boolean> generationComputed;
+		private final long timeElapsed;
+		private final long averageTime;
+		private final int nAliveCells;
+		
+		public GenerationResultsMsg(final int generationNumber, final Map<Point, Boolean> generationComputed,
+				final long timeElapsed, final long averageTime, final int nAliveCells) {
+			this.generationNumber = generationNumber;
+			this.generationComputed = generationComputed;
+			this.timeElapsed = timeElapsed;
+			this.averageTime = averageTime;
+			this.nAliveCells = nAliveCells;
+		}
+		
+		public int getGenerationNumber() {
+			return this.generationNumber;
+		}
+		
+		public Map<Point, Boolean> getGenerationComputed() {
+			return this.generationComputed;
+		}
+		
+		public long getTimeElapsed() {
+			return this.timeElapsed;
+		}
+		
+		public long getAverageTime() {
+			return this.averageTime;
+		}
+		
+		public int getNumberOfAliveCells() {
+			return this.nAliveCells;
+		}
+	}
+	
+	
+	/**
+	 * Creates Props for a view actor.
 	 * 
 	 * @return a Props for creating view actor, which can then be further configured
 	 */
-	public static Props props(final int width, final int height) {
-		return Props.create(ViewActor.class, width, height);
+	public static Props props(final View view) {
+		return Props.create(ViewActor.class, view);
 	}
 	
-	public ViewActor(final int width, final int height) {
-		this.width = width;
-		this.height = height;
+	/**
+	 * Creates a view actor.
+	 */
+	public ViewActor(final View view) {
+		this.view = view;
 		
-		this.nGenerationNotShown = 0;
+		this.generationsNotShown = new LinkedList<>();
 		
 		this.log = Logging.getLogger(getContext().getSystem(), this);
 		
+		this.initializingBehavior = receiveBuilder()
+				.match(InitViewMsg.class, msg -> {
+					// Initializes the fields
+					this.width = msg.getWidth();
+					this.height = msg.getHeight();
+					// Goes into paused state in which the visualization can be started
+					getContext().become(this.pausedBehavior);
+				})
+				.matchAny(msg -> log.info("Received unknown message: " + msg))
+				.build();
+		
 		this.pausedBehavior = receiveBuilder()
-				.matchEquals("play", msg -> {
-					this.scheduler.tell("play", ActorRef.noSender());
-					unstashAll();
+				.match(StartVisualizationMsg.class, msg -> {
+					// Starts the scheduling
+					this.scheduler.tell(new SchedulerActor.StartSchedulerMsg(), ActorRef.noSender());
+					// Goes into playing state
 					getContext().become(this.playingBehavior);
 				})
-				.match(GenerationResultsMsg.class, msg -> stash())
+				.match(GenerationResultsMsg.class, msg -> this.generationsNotShown.add(msg))
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
 		
 		this.playingBehavior = receiveBuilder()
 				.match(GenerationResultsMsg.class, msg -> {
-					this.nGenerationNotShown++;
-					stash();
+					// The arrived results are managed only with the refresh frequency determined by the scheduler
+					this.generationsNotShown.add(msg);
 				})
-				.match(TickMsg.class, refreshMsg -> {
-					if (this.nGenerationNotShown > 0) {
-						unstash();
-						getContext().become(receiveBuilder()
-								.match(GenerationResultsMsg.class, msg -> {
-									// Shows results
-									for (int y = 0; y < this.height; y++) {
-										for (int x = 0; x < this.width; x++) {
-											System.out.print(msg.getGenerationComputed().get(new Point(x, y)) ? "O " : "X ");
-										}
-										System.out.println();
-									}
-									System.out.println();
-									// Updates counter
-									this.nGenerationNotShown--;
-									getContext().unbecome();
-								})
-								.matchAny(msg -> log.info("Received unknown message: " + msg))
-								.build(), false);
+				.match(SchedulerActor.TickMsg.class, refreshMsg -> {
+					if (this.generationsNotShown.size() > 0) {
+						final GenerationResultsMsg res = this.generationsNotShown.pop();
+						// Shows results
+						this.view.drawCells(res.generationComputed);
+						ViewDataManager.getInstance().setGeneration(res.getGenerationNumber());
+						ViewDataManager.getInstance().setAliveCells(res.getNumberOfAliveCells());
+						ViewDataManager.getInstance().setElapsedTime(res.getTimeElapsed());
+						ViewDataManager.getInstance().setAvgElapsedTime(res.getAverageTime());
 					}
 				})
 				.matchEquals("pause", msg -> getContext().become(this.pausedBehavior))
@@ -84,12 +164,13 @@ public class ViewActor extends AbstractActorWithStash {
 	
 	@Override
 	public void preStart() {
+		// Creates the scheduler actor
 		this.scheduler = getContext().actorOf(SchedulerActor.props(DEFAULT_REFRESH_RATE_MILLIS, getSelf()), "scheduler");
 	}
 	
 	@Override
 	public Receive createReceive() {
-		return this.pausedBehavior;
+		return this.initializingBehavior;
 	}
 	
 }
