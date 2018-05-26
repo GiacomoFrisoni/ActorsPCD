@@ -4,6 +4,7 @@ import java.awt.Dimension;
 import java.util.Optional;
 
 import akka.actor.ActorRef;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -12,32 +13,19 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import pcd.ass03.gameoflife.actors.GridActor;
+import pcd.ass03.gameoflife.actors.ViewActor;
 
 public class MenuPanel extends VBox {
 
-	@FXML
-	private TextField mapWidth, mapHeight;
-	
-	@FXML
-	private MiniMap miniMap;
-	
-	@FXML
-	private Label currentPosition, viewableCells, generation, elapsedTime, aliveCells, errorLabel, loadingLabel, sliderValue, avgElapsedTime;
-	
-	@FXML
-	private Button start, stop, reset;
-	
-	@FXML
-	private Pane cellMapContainer;
-	
-	@FXML
-	private VBox loadingStatus;
-	
-	@FXML
-	private ProgressBar progress;
-	
-	@FXML
-	private Slider slider;
+	@FXML private TextField mapWidth, mapHeight;
+	@FXML private MiniMap miniMap;
+	@FXML private Pane miniMapContainer;
+	@FXML private Label currentPosition, viewableCells, generation, elapsedTime, aliveCells, errorLabel, loadingLabel, sliderValue, avgElapsedTime;
+	@FXML private Button start, stop, reset;
+	@FXML private VBox loadingStatus;
+	@FXML private ProgressBar progress;
+	@FXML private Slider slider;
 	
 	private ActorRef gridActor, viewActor;
 	private CellMapViewer cellMapViewer;
@@ -48,61 +36,146 @@ public class MenuPanel extends VBox {
 		if (!result.isPresent()) {
 			this.errorLabel.setVisible(false);
 			this.setActionListeners();
-			this.setPropertiesListeners();
+			this.setPropertiesListeners();		
 		} else {
 			MessageUtils.showFXMLException(this.getClass().getSimpleName(), result.get());
 		}
 	}
 	
+	/**
+	 * Initialize the component after viewing to set correctly the size
+	 */
+	public void init() {
+		this.miniMap.setWidth(this.miniMapContainer.getWidth());
+		this.miniMap.setHeight(this.miniMapContainer.getHeight());
+	}
 	
+	/**
+	 * Set the reference to the grid actor
+	 * @param gridActor
+	 * 		Reference to the grid actor
+	 */
 	public void setGridActorRef(final ActorRef gridActor) {
 		this.gridActor = gridActor;
 	}
 	
+	/**
+	 * Set the reference to the view actor
+	 * @param viewActor
+	 * 		Reference to view actor
+	 */
 	public void setViewActorRef(final ActorRef viewActor) {
 		this.viewActor = viewActor;
 	}
 	
+	/**
+	 * Set the reference to cell map viewer
+	 * @param cellMapViewer
+	 * 		Reference to cell map viewer
+	 */
 	public void setCellMapRef(final CellMapViewer cellMapViewer) {
 		this.cellMapViewer = cellMapViewer;
 	}
 	
-	public void init() {
-		//this.miniMap.setLimits(x, y);
-	}
-	
+	/**
+	 * Reset the menu panel
+	 */
 	public void reset() {
 		
 	}
 	
+	/**
+	 * Set as stopped the state of menu panel
+	 */
 	public void setStopped() {
 		
 	}
 	
+	/**
+	 * Set as started the state of menu panel
+	 */
 	public void setStarted() {
 		
 	}
 	
-	public void updateMiniMap(final int xPos, final int yPos) {
-		
+	/**
+	 * Set the limits of the minimap, when the map dimension is known
+	 * @param x
+	 * 		X limit of the minimap (width)
+	 * @param y
+	 * 		Y limit of the minimap (height)
+	 */
+	public void setMiniMapLimits(final int x, final int y) {
+		this.miniMap.setLimits(x, y);
 	}
 	
+	/**
+	 * Updates the minimap, changing the preview position
+	 * @param xPos
+	 * 		X position of the preview
+	 * @param yPos
+	 * 		Y position of the preview
+	 */
+	public void updateMiniMap(final int xPos, final int yPos) {
+		this.miniMap.drawCurrentPosition(xPos, yPos);
+		Platform.runLater(() -> {
+			this.currentPosition.setText(xPos + ", " + yPos);
+		});	
+	}
+	
+	/**
+	 * Updates the viewable cells values, when they're known
+	 * @param drawableXCells
+	 * 		Cells drawable in width on the cell map viewer
+	 * @param drawableYCells
+	 * 		Cells drawable in height on the cell map viewer
+	 */
+	public void updatePreviewValues(final int drawableXCells, final int drawableYCells) {
+		Platform.runLater(() ->{
+			this.viewableCells.setText("W: " + drawableXCells + ", H: " + drawableYCells);
+		});
+	}
+	
+	/**
+	 * Set the buttons and slider action listeners
+	 */
 	private void setActionListeners() {
-		start.setOnMouseClicked(e -> {
+		this.start.setOnMouseClicked(e -> {
 			getReadyToStart();
 		});
 		
-		stop.setOnMouseClicked(e -> {
-			this.stop.setDisable(true);
+		this.stop.setOnMouseClicked(e -> {
+			//TODO Tell actor to stop
 			this.gridActor.tell("stop", ActorRef.noSender());
+			
+			//Enable the button
+			Platform.runLater(() -> {
+				this.start.setDisable(false);
+				this.stop.setDisable(true);
+				this.reset.setDisable(false);
+			});
 		});
 		
-		reset.setOnMouseClicked(e -> {
-			this.reset.setDisable(true);
+		this.reset.setOnMouseClicked(e -> {
 			this.gridActor.tell("reset", ActorRef.noSender());
+			
+			//Reset buttons
+			Platform.runLater(() -> {
+				this.reset.setDisable(true);
+				this.start.setDisable(false);
+				this.stop.setDisable(true);
+			});
+		});
+		
+		this.slider.setOnMouseReleased(e -> {
+			//TODO Scheduler refresh ratio
+			System.out.println("Changed value in: " + this.slider.getValue());
 		});
 	}
 	
+	/**
+	 * Set the bindings for values
+	 */
 	private void setPropertiesListeners() {
 		this.generation.textProperty().bind(ViewDataManager.getInstance().getGeneration().asString());
 		this.elapsedTime.textProperty().bind(ViewDataManager.getInstance().getElapsedTime().asString());
@@ -112,6 +185,9 @@ public class MenuPanel extends VBox {
 		this.loadingLabel.textProperty().bind(ViewDataManager.getInstance().getMessage());
 	}
 	
+	/**
+	 * Execute checks and start, if can
+	 */
 	private void getReadyToStart() {
 		//Get the dimension
 		final Optional<Dimension> dimension = this.getMapDimension();
@@ -121,15 +197,28 @@ public class MenuPanel extends VBox {
 			//Set the map dimensions
 			this.cellMapViewer.setDimension(dimension.get());
 			
-			//Getting started
-			this.start.setDisable(true);
-			this.stop.setDisable(false);
-			
 			//Sending message, you can start now!
-			this.gridActor.tell("play", ActorRef.noSender());
+			viewActor.tell(new ViewActor.InitViewMsg(dimension.get().width, dimension.get().height), ActorRef.noSender());
+			gridActor.tell(new GridActor.InitGridMsg(dimension.get().width, dimension.get().height, viewActor), ActorRef.noSender());
+			viewActor.tell(new ViewActor.StartVisualizationMsg(), ActorRef.noSender());
+			gridActor.tell(new GridActor.StartGameMsg(), ActorRef.noSender());
+			
+			//Getting started
+			Platform.runLater(() -> {
+				this.start.setDisable(true);
+				this.stop.setDisable(false);
+				this.reset.setDisable(true);
+			});
+
 		}
 	}
 	
+	/**
+	 * Read from the menu the desired width and height of the map
+	 * @return
+	 * 		Optional.empty() if something went wrong <br/>
+	 * 		Optional.of(new Dimension...) if values are ok
+	 */
 	private Optional<Dimension> getMapDimension() {
 		this.errorLabel.setVisible(false);
 		final String width = this.mapWidth.getText();

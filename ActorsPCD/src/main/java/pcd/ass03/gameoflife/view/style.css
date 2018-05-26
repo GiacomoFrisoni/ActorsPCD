@@ -25,7 +25,7 @@ CellMap, .cell-mapm .stack-pane {
 	-fx-background-color: backgroundColorDark;
 }
 
-#cellMapContainer {
+#miniMapContainer {
 	-fx-border-color: white;
 }
 

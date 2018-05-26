@@ -22,8 +22,8 @@ public class MiniMap extends Canvas {
 	 * 		max y reachable (in height)
 	 */
 	public void setLimits(final int x, final int y) {
-		this.cellSizeX = (int) (getWidth() / (x));
-		this.cellSizeY = (int) (getHeight() / (y));
+		this.cellSizeX = (int) (this.getWidth() / (x+1));
+		this.cellSizeY = (int) (this.getHeight() / (y+1));
 		drawCurrentPosition(0, 0);
 	}
 
@@ -38,12 +38,9 @@ public class MiniMap extends Canvas {
 		final GraphicsContext gc = getGraphicsContext2D();
 		gc.setFill(Color.ORANGE);
 		
-		Platform.runLater(new Runnable() {			
-			@Override
-			public void run() {		
-				gc.clearRect(0, 0, getWidth(), getHeight());				
-				gc.fillRect((x * cellSizeX), (y * cellSizeY), cellSizeX , cellSizeY);
-			}
+		Platform.runLater(() -> {	
+			gc.clearRect(0, 0, getWidth(), getHeight());				
+			gc.fillRect((x * cellSizeX), (y * cellSizeY), cellSizeX , cellSizeY);
 		});	
 	}
 	
@@ -54,11 +51,8 @@ public class MiniMap extends Canvas {
 		final GraphicsContext gc = getGraphicsContext2D();
 		gc.setFill(BACKGROUND_COLOR);
 		
-		Platform.runLater(new Runnable() {			
-			@Override
-			public void run() {
-				gc.clearRect(0, 0, getWidth(), getHeight());
-			}
+		Platform.runLater(() -> {
+			gc.clearRect(0, 0, getWidth(), getHeight());
 		});
 	}
 }
