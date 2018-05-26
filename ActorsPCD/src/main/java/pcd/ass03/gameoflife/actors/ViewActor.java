@@ -133,6 +133,7 @@ public class ViewActor extends AbstractActor {
 				})
 				.match(GenerationResultsMsg.class, msg -> this.generationsNotShown.add(msg))
 				.match(ResetVisualizationMsg.class, msg -> this.generationsNotShown.clear())
+				.match(SchedulerActor.TickMsg.class, msg -> { })
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
 		
