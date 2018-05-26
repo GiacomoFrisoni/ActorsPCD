@@ -6,15 +6,18 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 import akka.actor.AbstractActorWithStash;
 import akka.actor.ActorRef;
 import akka.actor.Props;
+import akka.actor.Terminated;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import pcd.ass03.gameoflife.actors.CellActor.ComputeMsg;
 import pcd.ass03.gameoflife.actors.CellActor.PrepareNextGenerationMsg;
 import pcd.ass03.gameoflife.utilities.Chrono;
+import scala.concurrent.duration.Duration;
 
 /**
  * This actor represents a grid for the Conway's Game Of Life.
@@ -33,6 +36,7 @@ public class GridActor extends AbstractActorWithStash {
 	private int nAliveCells;
 	private long averageTime;
 	private final Chrono timer;
+	private int nTerminatedCells;
 	
 	private final LoggingAdapter log;
 	private Receive initializingBehavior;
@@ -118,43 +122,7 @@ public class GridActor extends AbstractActorWithStash {
 		
 		this.initializingBehavior = receiveBuilder()
 				.match(InitGridMsg.class, msg -> {
-					// Initializes the fields
-					this.width = msg.getWidth();
-					this.height = msg.getHeight();
-					this.view = msg.getView();
-					this.cellsActorsMap = new HashMap<>();
-					this.notYetStarted = true;
-					this.nGenerations = 0;
-					this.calculatedGeneration = new HashMap<>();
-					this.nAliveCells = 0;
-					this.averageTime = 0;
-					
-					// Creates cell actors and registers their references in a map
-					for (int y = 0; y < this.height; y++) {
-						for (int x = 0; x < this.width; x++) {
-							this.cellsActorsMap.put(new Point(x, y), getContext().actorOf(CellActor.props(x, y), "cell_" + x + "_" + y));
-						}
-					}
-					// Sends neighbors to each cell
-					this.cellsActorsMap.forEach((cellPos, cellRef) ->
-						cellRef.tell(new CellActor.NeighboursMsg(getCellNeighbours(cellPos)), ActorRef.noSender()));
-					// Initializes the cells with a random state
-					this.cellsActorsMap.forEach((cellPos, cellRef) -> {
-						boolean randomState = ThreadLocalRandom.current().nextBoolean();
-						if (randomState) {
-							this.nAliveCells++;
-						}
-						this.calculatedGeneration.put(cellPos, randomState);
-						cellRef.tell(new CellActor.SetStateMsg(randomState), ActorRef.noSender());
-					});
-					
-					// Notify the actor view with the initialized grid
-					this.view.tell(new ViewActor.GenerationResultsMsg(
-							this.nGenerations,
-							new HashMap<Point, Boolean>(this.calculatedGeneration),
-							0, 0,
-							this.nAliveCells), ActorRef.noSender());
-					
+					initialize(msg.getHeight(), msg.getWidth(), msg.getView());
 					// Changes state
 					unstashAll();
 					getContext().become(this.pausedBehavior);
@@ -178,6 +146,17 @@ public class GridActor extends AbstractActorWithStash {
 					getContext().become(this.playingBehavior, false);
 				})
 				.match(CellNextStateMsg.class, msg -> stash())
+				.match(InitGridMsg.class, resetMsg -> {
+					this.cellsActorsMap.values().forEach(cellRef -> {
+						getContext().stop(cellRef);
+					});
+					getContext().become(receiveBuilder()
+							.match(Terminated.class, t -> this.cellsActorsMap.values().contains(t.actor()), t -> {
+								System.out.println(t.actor().toString() + "MORTO");
+							})
+							.matchAny(msg -> log.info("Received unknown message: " + msg))
+							.build());
+				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
 		
@@ -215,6 +194,19 @@ public class GridActor extends AbstractActorWithStash {
 					this.timer.pause();
 					getContext().unbecome();
 				})
+				.match(InitGridMsg.class, resetMsg -> {
+					this.cellsActorsMap.values().forEach(cellRef -> {
+						getContext().stop(cellRef);
+					});
+					getContext().become(receiveBuilder()
+							.match(Terminated.class, t -> this.cellsActorsMap.values().contains(t.actor()), t -> {
+								this.nTerminatedCells++;
+								if (this.nTerminatedCells == this.cellsActorsMap.size()) {
+									initialize(resetMsg.getWidth(), resetMsg.getHeight(), resetMsg.getView());
+								}
+							})
+							.build());
+				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
 	}
@@ -234,6 +226,57 @@ public class GridActor extends AbstractActorWithStash {
 			}
 		}
 		return neighbours;
+	}
+	
+	private void initialize(final int width, final int height, final ActorRef view) {
+		// Initializes the fields
+		this.width = width;
+		this.height = height;
+		this.view = view;
+		this.cellsActorsMap = new HashMap<>();
+		this.notYetStarted = true;
+		this.nGenerations = 0;
+		this.calculatedGeneration = new HashMap<>();
+		this.nAliveCells = 0;
+		this.averageTime = 0;
+		
+		// Creates cell actors and registers their references in a map
+		for (int y = 0; y < this.height; y++) {
+			for (int x = 0; x < this.width; x++) {
+				final ActorRef cellActor = getContext().actorOf(CellActor.props(x, y), "cell_" + x + "_" + y);
+				this.cellsActorsMap.put(new Point(x, y), cellActor);
+				getContext().watch(cellActor);
+			}
+		}
+		// Sends neighbors to each cell
+		this.cellsActorsMap.forEach((cellPos, cellRef) ->
+			cellRef.tell(new CellActor.NeighboursMsg(getCellNeighbours(cellPos)), ActorRef.noSender()));
+		// Initializes the cells with a random state
+		this.cellsActorsMap.forEach((cellPos, cellRef) -> {
+			boolean randomState = ThreadLocalRandom.current().nextBoolean();
+			if (randomState) {
+				this.nAliveCells++;
+			}
+			this.calculatedGeneration.put(cellPos, randomState);
+			cellRef.tell(new CellActor.SetStateMsg(randomState), ActorRef.noSender());
+		});
+		
+		// Notify the actor view with the initialized grid
+		this.view.tell(new ViewActor.GenerationResultsMsg(
+				this.nGenerations,
+				new HashMap<Point, Boolean>(this.calculatedGeneration),
+				0, 0,
+				this.nAliveCells), ActorRef.noSender());
+	}
+	
+	@Override
+	public void preStart() {
+		getContext().getSystem().scheduler().scheduleOnce(
+				Duration.create(5, TimeUnit.SECONDS),
+				getSelf(),
+				new InitGridMsg(10, 10, null),
+				getContext().system().dispatcher(),
+				ActorRef.noSender());
 	}
 	
 	@Override
