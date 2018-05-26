@@ -51,8 +51,8 @@
 	<VBox spacing="10">
 		<VBox spacing="5">
 			<Button prefWidth="$defaultWidth" fx:id="start">Start</Button>
-			<Button prefWidth="$defaultWidth" fx:id="stop">Stop</Button>
-			<Button prefWidth="$defaultWidth" fx:id="reset">Reset</Button>
+			<Button prefWidth="$defaultWidth" fx:id="stop" disable="true">Stop</Button>
+			<Button prefWidth="$defaultWidth" fx:id="reset" disable="true">Reset</Button>
 		</VBox>
 		
 		<VBox fx:id="loadingStatus">
@@ -63,8 +63,8 @@
 	
 	<!-- MiniMap -->
 	<VBox>
-		<Pane fx:id="cellMapContainer" id="cellMapContainer">
-			<MiniMap  fx:id="miniatureCellMap" width="$defaultWidth" height="$defaultWidth"></MiniMap>
+		<Pane fx:id="miniMapContainer" id="miniMapContainer">
+			<MiniMap fx:id="miniMap" width="$defaultWidth" height="$defaultWidth"></MiniMap>
 		</Pane>
 		<HBox spacing="5">
 			<Label prefWidth="$mediumWidth" text="Current position:"></Label>
