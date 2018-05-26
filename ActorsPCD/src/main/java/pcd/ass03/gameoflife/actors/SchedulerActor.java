@@ -17,7 +17,7 @@ import scala.concurrent.duration.Duration;
  */
 public class SchedulerActor extends AbstractActor {
 
-	private final long rate;
+	private long rate;
 	private final ActorRef subscriber;
 	private Cancellable refreshSchedule;
 
@@ -55,6 +55,7 @@ public class SchedulerActor extends AbstractActor {
 			return this.rate;
 		}
 	}
+	
 
 	/**
 	 * Creates Props for a scheduler actor.
@@ -84,9 +85,7 @@ public class SchedulerActor extends AbstractActor {
 					createScheduledRefresh(this.rate);
 					getContext().become(this.playingBehavior);
 				})
-				.match(ChangeRateMsg.class, msg -> {
-					createScheduledRefresh(msg.getRate());
-				})
+				.match(ChangeRateMsg.class, msg -> this.rate = msg.getRate())
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
 		
@@ -96,8 +95,9 @@ public class SchedulerActor extends AbstractActor {
 					getContext().become(this.stoppedBehavior);
 				})
 				.match(ChangeRateMsg.class, msg -> {
+					this.rate = msg.getRate();
 					this.refreshSchedule.cancel();
-					createScheduledRefresh(msg.getRate());
+					createScheduledRefresh(this.rate);
 				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
