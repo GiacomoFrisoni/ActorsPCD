@@ -4,11 +4,7 @@ import java.awt.Dimension;
 import java.util.Optional;
 
 import akka.actor.ActorRef;
-import akka.actor.ActorSelection;
 import javafx.application.Platform;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -46,7 +42,7 @@ public class MenuPanel extends VBox {
 			this.slider.setValue(DEFAULT_REFRESH_RATE);
 			this.sliderValue.setText("" + (int) DEFAULT_REFRESH_RATE);
 			this.setActionListeners();
-			this.setPropertiesListeners();		
+			this.setPropertiesListeners();	
 		} else {
 			MessageUtils.showFXMLException(this.getClass().getSimpleName(), result.get());
 		}

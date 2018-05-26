@@ -6,7 +6,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 import akka.actor.AbstractActorWithStash;
 import akka.actor.ActorRef;
@@ -17,7 +16,6 @@ import akka.event.LoggingAdapter;
 import pcd.ass03.gameoflife.actors.CellActor.ComputeMsg;
 import pcd.ass03.gameoflife.actors.CellActor.PrepareNextGenerationMsg;
 import pcd.ass03.gameoflife.utilities.Chrono;
-import scala.concurrent.duration.Duration;
 
 /**
  * This actor represents a grid for the Conway's Game Of Life.

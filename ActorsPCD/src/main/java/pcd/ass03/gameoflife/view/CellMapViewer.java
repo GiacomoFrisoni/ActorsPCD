@@ -16,7 +16,6 @@ public class CellMapViewer extends BorderPane {
 	
 	private static final int CELL_SIZE = 9;
 	private static final int CELL_OFFSET = CELL_SIZE + 1;
-	private static final Color BACKGROUND_COLOR = new Color(0.23, 0.23, 0.23, 1);
 	private static final Color ALIVE_CELL_COLOR = Color.AQUA;
 	
 	private int xPos, yPos;
