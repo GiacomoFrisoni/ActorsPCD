@@ -56,7 +56,6 @@
 		</VBox>
 		
 		<VBox fx:id="loadingStatus">
-			<Label fx:id="loadingLabel"></Label>
 			<ProgressBar prefWidth="$defaultWidth" fx:id="progress"></ProgressBar>
 		</VBox>
 	</VBox>

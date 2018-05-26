@@ -15,16 +15,11 @@ public class ViewDataManager {
 	private final SimpleLongProperty elapsedTime = new SimpleLongProperty();
 	private final SimpleLongProperty avgElapsedTime = new SimpleLongProperty();
 	
-	private final SimpleStringProperty message = new SimpleStringProperty();
-	
-	
 	private ViewDataManager() {
 		this.generation.set(0);
 		this.aliveCells.set(0);
 		this.elapsedTime.set(0);
 		this.avgElapsedTime.set(0);
-		
-		this.message.set(IDLE_MESSAGE);
 	}
 	
 	/**
@@ -45,24 +40,40 @@ public class ViewDataManager {
 	}
 	
 	
+	/**
+	 * Get the property of current generation number, ready to bind
+	 * @return
+	 * 		Property representing the current generation number
+	 */
 	public SimpleLongProperty getGeneration() {
 		return generation;
 	}
 
+	/**
+	 * Get the property of current alive cells, ready to bind
+	 * @return
+	 * 		Property representing the current alive cells
+	 */
 	public SimpleLongProperty getAliveCells() {
 		return aliveCells;
 	}
 
+	/**
+	 * Get the property of last elapsed time, ready to bind
+	 * @return
+	 * 		Property represeting last elapsed time
+	 */
 	public SimpleLongProperty getElapsedTime() {
 		return elapsedTime;
 	}
 
+	/**
+	 * Get the property of average elapsed time, ready to bind
+	 * @return
+	 * 		Property represeting average elapsed time
+	 */
 	public SimpleLongProperty getAvgElapsedTime() {
 		return avgElapsedTime;
-	}
-
-	public SimpleStringProperty getMessage() {
-		return message;
 	}
 
 	/**
@@ -108,16 +119,4 @@ public class ViewDataManager {
 			this.avgElapsedTime.set(avgElapsedTime);
 		});
 	}
-	
-	/**
-	 * Set the message specifying current state of computation
-	 * @param message
-	 * 		message to show (must be short)
-	 */
-	public void setMessage(final String message) {
-		Platform.runLater(() -> {
-			this.message.set(message);
-		});
-	}
-	
 }

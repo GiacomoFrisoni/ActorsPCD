@@ -23,7 +23,7 @@ public class MenuPanel extends VBox {
 	@FXML private TextField mapWidth, mapHeight;
 	@FXML private MiniMap miniMap;
 	@FXML private Pane miniMapContainer;
-	@FXML private Label currentPosition, viewableCells, generation, elapsedTime, aliveCells, errorLabel, loadingLabel, sliderValue, avgElapsedTime;
+	@FXML private Label currentPosition, viewableCells, generation, elapsedTime, aliveCells, errorLabel, sliderValue, avgElapsedTime;
 	@FXML private Button start, stop, reset;
 	@FXML private VBox loadingStatus;
 	@FXML private ProgressBar progress;
@@ -150,6 +150,10 @@ public class MenuPanel extends VBox {
 			if (!isStarted) {
 				getReadyToStart();
 			} else {
+				this.start.setDisable(true);
+				this.stop.setDisable(false);
+				this.reset.setDisable(true);
+				
 				gridActor.tell(new GridActor.StartGameMsg(), ActorRef.noSender());
 				viewActor.tell(new ViewActor.StartVisualizationMsg(), ActorRef.noSender());
 			}
@@ -197,11 +201,9 @@ public class MenuPanel extends VBox {
 	 */
 	private void setPropertiesListeners() {		
 		this.generation.textProperty().bind(ViewDataManager.getInstance().getGeneration().asString());
-		this.elapsedTime.textProperty().bind(ViewDataManager.getInstance().getElapsedTime().asString());
+		this.elapsedTime.textProperty().bind(ViewDataManager.getInstance().getElapsedTime().asString("%d ms"));
 		this.aliveCells.textProperty().bind(ViewDataManager.getInstance().getAliveCells().asString());
-		this.avgElapsedTime.textProperty().bind(ViewDataManager.getInstance().getAvgElapsedTime().asString());
-		
-		this.loadingLabel.textProperty().bind(ViewDataManager.getInstance().getMessage());
+		this.avgElapsedTime.textProperty().bind(ViewDataManager.getInstance().getAvgElapsedTime().asString("%d ms"));
 		
 		this.slider.valueProperty().addListener(listener -> {	
 			final int subdivision = (int) (this.slider.getValue() / 100);
