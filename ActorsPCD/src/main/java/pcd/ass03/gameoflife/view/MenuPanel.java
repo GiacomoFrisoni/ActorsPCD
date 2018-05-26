@@ -147,7 +147,7 @@ public class MenuPanel extends VBox {
 	 */
 	private void setActionListeners() {
 		this.start.setOnMouseClicked(e -> {
-			if (isStarted) {
+			if (!isStarted) {
 				getReadyToStart();
 			} else {
 				gridActor.tell(new GridActor.StartGameMsg(), ActorRef.noSender());
@@ -171,6 +171,9 @@ public class MenuPanel extends VBox {
 			
 			//Reset started status
 			isStarted = false;
+			this.cellMapViewer.reset();
+			this.miniMap.reset();
+			this.gridActor.tell(new GridActor.ResetGameMsg(), ActorRef.noSender());
 			
 			//Reset buttons
 			Platform.runLater(() -> {

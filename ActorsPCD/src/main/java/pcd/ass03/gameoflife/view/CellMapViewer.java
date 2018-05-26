@@ -5,6 +5,7 @@ import java.awt.Point;
 import java.util.Map;
 import java.util.Optional;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -94,7 +95,16 @@ public class CellMapViewer extends BorderPane {
 	 * Reset the CellMapViewer
 	 */
 	public void reset() {
+		this.cells.clear();
+		this.xPos = 0;
+		this.yPos = 0;
+		this.maxXMapNeeded = 0;
+		this.maxYMapNeeded = 0;
 		
+		Platform.runLater(() -> {
+			final GraphicsContext gc = cellMap.getGraphicsContext2D();
+			gc.clearRect(0, 0, cellMap.getWidth(), cellMap.getHeight());
+		});;
 	}
 	
 	/**
@@ -131,25 +141,29 @@ public class CellMapViewer extends BorderPane {
 			final int xStopPos = Math.min(drawableXCells, (actualXMap - (drawableXCells * xPos)));
 			final int yStopPos = Math.min(drawableYCells, (actualYMap - (drawableYCells * yPos)));
 			
-			final GraphicsContext gc = cellMap.getGraphicsContext2D();
-			gc.clearRect(0, 0, cellMap.getWidth(), cellMap.getHeight());
-			gc.setFill(ALIVE_CELL_COLOR);	
 			
-			for (int y = 0; y < yStopPos; y++) {
-				for (int x = 0; x < xStopPos; x++) {
-					//Get the point in right place (i + offset) (j + offset)
-					final Boolean value = cells.get(new Point(x + (xStartPos), y + (yStartPos)));
-					
-					//Check if it's null and it's alive
-					if (value != null) {
-						if (value) {
-	        				gc.fillRect(x * CELL_OFFSET, y * CELL_OFFSET, CELL_SIZE, CELL_SIZE);		   
-						}	
-					} else {
-						System.out.println("[" + x + ", " + y + "] - [" + (x+xStartPos) + ", " + (y+yStartPos) + "] is not present in the set");
+			Platform.runLater(() -> {
+				final GraphicsContext gc = cellMap.getGraphicsContext2D();
+				gc.clearRect(0, 0, cellMap.getWidth(), cellMap.getHeight());
+				gc.setFill(ALIVE_CELL_COLOR);	
+				System.out.println(cells.size());
+				
+				for (int y = 0; y < yStopPos; y++) {
+					for (int x = 0; x < xStopPos; x++) {
+						//Get the point in right place (i + offset) (j + offset)
+						final Boolean value = cells.get(new Point(x + (xStartPos), y + (yStartPos)));
+						
+						//Check if it's null and it's alive
+						if (value != null) {
+							if (value) {
+		        				gc.fillRect(x * CELL_OFFSET, y * CELL_OFFSET, CELL_SIZE, CELL_SIZE);		   
+							}	
+						} else {
+							System.out.println("[" + x + ", " + y + "] - [" + (x+xStartPos) + ", " + (y+yStartPos) + "] is not present in the set");
+						}
 					}
 				}
-			}
+			});
 		}
 	}
 	

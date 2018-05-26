@@ -136,14 +136,22 @@ public class GridActor extends AbstractActorWithStash {
 					this.nAliveCells = 0;
 					this.averageTime = 0;
 					
+					int count = 0;
+					
 					// Creates cell actors and registers their references in a map
 					for (int y = 0; y < this.height; y++) {
 						for (int x = 0; x < this.width; x++) {
 							final ActorRef cellActor = getContext().actorOf(CellActor.props(x, y), "cell_" + x + "_" + y);
 							this.cellsActorsMap.put(new Point(x, y), cellActor);
 							getContext().watch(cellActor);
+							count++;
 						}
 					}
+					
+					System.out.println("------");
+					System.out.println(count);
+					System.out.println(cellsActorsMap.size());
+					System.out.println("------");
 					// Sends neighbors to each cell
 					this.cellsActorsMap.forEach((cellPos, cellRef) ->
 						cellRef.tell(new CellActor.NeighboursMsg(getCellNeighbours(cellPos)), ActorRef.noSender()));
@@ -196,7 +204,7 @@ public class GridActor extends AbstractActorWithStash {
 								this.nTerminatedCells++;
 								if (this.nTerminatedCells == this.cellsActorsMap.size()) {
 									unstashAll();
-									getContext().unbecome();
+									getContext().become(initializingBehavior);
 								}
 							})
 							.match(InitGridMsg.class, msg -> stash())
