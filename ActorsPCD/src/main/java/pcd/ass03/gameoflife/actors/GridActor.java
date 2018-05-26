@@ -33,7 +33,7 @@ public class GridActor extends AbstractActorWithStash {
 	private Map<Point, Boolean> calculatedGeneration;
 	private int nAliveCells;
 	private long averageTime;
-	private final Chrono timer;
+	private Chrono timer;
 	private int nTerminatedCells;
 	
 	private final LoggingAdapter log;
@@ -120,7 +120,6 @@ public class GridActor extends AbstractActorWithStash {
 	 * Creates a grid actor.
 	 */
 	public GridActor() {
-		this.timer = new Chrono();
 		this.log = Logging.getLogger(getContext().getSystem(), this);
 		
 		this.initializingBehavior = receiveBuilder()
@@ -136,8 +135,7 @@ public class GridActor extends AbstractActorWithStash {
 					this.nAliveCells = 0;
 					this.averageTime = 0;
 					this.nTerminatedCells = 0;
-					
-					int count = 0;
+					this.timer = new Chrono();
 					
 					// Creates cell actors and registers their references in a map
 					for (int y = 0; y < this.height; y++) {
@@ -145,13 +143,13 @@ public class GridActor extends AbstractActorWithStash {
 							final ActorRef cellActor = getContext().actorOf(CellActor.props(x, y), "cell_" + x + "_" + y);
 							this.cellsActorsMap.put(new Point(x, y), cellActor);
 							getContext().watch(cellActor);
-							count++;
 						}
 					}
 					
 					// Sends neighbors to each cell
 					this.cellsActorsMap.forEach((cellPos, cellRef) ->
 						cellRef.tell(new CellActor.NeighboursMsg(getCellNeighbours(cellPos)), ActorRef.noSender()));
+					
 					// Initializes the cells with a random state
 					this.cellsActorsMap.forEach((cellPos, cellRef) -> {
 						boolean randomState = ThreadLocalRandom.current().nextBoolean();
@@ -254,7 +252,7 @@ public class GridActor extends AbstractActorWithStash {
 								this.nTerminatedCells++;
 								if (this.nTerminatedCells == this.cellsActorsMap.size()) {
 									unstashAll();
-									getContext().unbecome();
+									getContext().become(initializingBehavior);
 								}
 							})
 							.match(InitGridMsg.class, msg -> stash())
