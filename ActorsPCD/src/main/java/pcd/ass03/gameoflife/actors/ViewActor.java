@@ -78,14 +78,17 @@ public class ViewActor extends AbstractActor {
 		}
 	}
 	
+	/**
+	 * This message allows to change the refresh rate for the generation results visualization.
+	 */
 	public static final class ChangeRefreshRateMsg {
-		private final int refreshRate;
+		private final long refreshRate;
 		
-		public ChangeRefreshRateMsg(final int refreshRate) {
+		public ChangeRefreshRateMsg(final long refreshRate) {
 			this.refreshRate = refreshRate;
 		}
 		
-		public int getRefreshRate() {
+		public long getRefreshRate() {
 			return this.refreshRate;
 		}
 	}
