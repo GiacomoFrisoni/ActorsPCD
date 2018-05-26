@@ -174,6 +174,7 @@ public class MenuPanel extends VBox {
 			this.cellMapViewer.reset();
 			this.miniMap.reset();
 			this.gridActor.tell(new GridActor.ResetGameMsg(), ActorRef.noSender());
+			this.viewActor.tell(new ViewActor.ResetVisualizationMsg(), ActorRef.noSender());
 			
 			//Reset buttons
 			Platform.runLater(() -> {

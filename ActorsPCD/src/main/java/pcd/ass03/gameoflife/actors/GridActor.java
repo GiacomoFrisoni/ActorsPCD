@@ -135,6 +135,7 @@ public class GridActor extends AbstractActorWithStash {
 					this.calculatedGeneration = new HashMap<>();
 					this.nAliveCells = 0;
 					this.averageTime = 0;
+					this.nTerminatedCells = 0;
 					
 					int count = 0;
 					
@@ -148,10 +149,6 @@ public class GridActor extends AbstractActorWithStash {
 						}
 					}
 					
-					System.out.println("------");
-					System.out.println(count);
-					System.out.println(cellsActorsMap.size());
-					System.out.println("------");
 					// Sends neighbors to each cell
 					this.cellsActorsMap.forEach((cellPos, cellRef) ->
 						cellRef.tell(new CellActor.NeighboursMsg(getCellNeighbours(cellPos)), ActorRef.noSender()));
@@ -177,6 +174,7 @@ public class GridActor extends AbstractActorWithStash {
 					getContext().become(this.pausedBehavior);
 				})
 				.match(StartGameMsg.class, msg -> stash())
+				.match(CellNextStateMsg.class, msg -> {})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
 		
@@ -204,7 +202,7 @@ public class GridActor extends AbstractActorWithStash {
 								this.nTerminatedCells++;
 								if (this.nTerminatedCells == this.cellsActorsMap.size()) {
 									unstashAll();
-									getContext().become(initializingBehavior);
+									getContext().become(initializingBehavior);									
 								}
 							})
 							.match(InitGridMsg.class, msg -> stash())

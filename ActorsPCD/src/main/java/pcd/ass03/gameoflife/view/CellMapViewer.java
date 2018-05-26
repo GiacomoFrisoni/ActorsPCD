@@ -145,8 +145,7 @@ public class CellMapViewer extends BorderPane {
 			Platform.runLater(() -> {
 				final GraphicsContext gc = cellMap.getGraphicsContext2D();
 				gc.clearRect(0, 0, cellMap.getWidth(), cellMap.getHeight());
-				gc.setFill(ALIVE_CELL_COLOR);	
-				System.out.println(cells.size());
+				gc.setFill(ALIVE_CELL_COLOR);
 				
 				for (int y = 0; y < yStopPos; y++) {
 					for (int x = 0; x < xStopPos; x++) {
@@ -159,7 +158,7 @@ public class CellMapViewer extends BorderPane {
 		        				gc.fillRect(x * CELL_OFFSET, y * CELL_OFFSET, CELL_SIZE, CELL_SIZE);		   
 							}	
 						} else {
-							System.out.println("[" + x + ", " + y + "] - [" + (x+xStartPos) + ", " + (y+yStartPos) + "] is not present in the set");
+							System.out.println("[" + x + ", " + y + "] - [" + (x+xStartPos) + ", " + (y+yStartPos) + "] is not present in the set. This shouldn't happen.");
 						}
 					}
 				}
