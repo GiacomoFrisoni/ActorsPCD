@@ -7,6 +7,8 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import javafx.application.Platform;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -34,12 +36,15 @@ public class MenuPanel extends VBox {
 	private ActorRef gridActor, viewActor;
 	private CellMapViewer cellMapViewer;
 	
+	private boolean isStarted = false;
+	
 	public MenuPanel() {
 		Optional<String> result = ViewUtils.loadFXML(this, "MenuPanel.fxml");
 		
 		if (!result.isPresent()) {
 			this.errorLabel.setVisible(false);
 			this.slider.setValue(DEFAULT_REFRESH_RATE);
+			this.sliderValue.setText("" + (int) DEFAULT_REFRESH_RATE);
 			this.setActionListeners();
 			this.setPropertiesListeners();		
 		} else {
@@ -146,11 +151,17 @@ public class MenuPanel extends VBox {
 	 */
 	private void setActionListeners() {
 		this.start.setOnMouseClicked(e -> {
-			getReadyToStart();
+			if (isStarted) {
+				getReadyToStart();
+			} else {
+				gridActor.tell(new GridActor.StartGameMsg(), ActorRef.noSender());
+				viewActor.tell(new ViewActor.StartVisualizationMsg(), ActorRef.noSender());
+			}
 		});
 		
 		this.stop.setOnMouseClicked(e -> {
 			this.gridActor.tell(new GridActor.PauseGameMsg(), ActorRef.noSender());
+			this.viewActor.tell(new ViewActor.StopVisualizationMsg(), ActorRef.noSender());
 			
 			//Enable the button
 			Platform.runLater(() -> {
@@ -160,15 +171,19 @@ public class MenuPanel extends VBox {
 			});
 		});
 		
-		this.reset.setOnMouseClicked(e -> {
-			//TODO tell actor to reset
-			this.gridActor.tell("reset", ActorRef.noSender());
+		this.reset.setOnMouseClicked(e -> {		
+			
+			//Reset started status
+			isStarted = false;
 			
 			//Reset buttons
 			Platform.runLater(() -> {
 				this.reset.setDisable(true);
 				this.start.setDisable(false);
 				this.stop.setDisable(true);
+				
+				this.mapWidth.setDisable(false);
+				this.mapHeight.setDisable(false);
 			});
 		});
 		
@@ -176,20 +191,21 @@ public class MenuPanel extends VBox {
 			this.viewActor.tell(new ViewActor.ChangeRefreshRateMsg((long)this.slider.getValue()), ActorRef.noSender());
 		});
 	}
-	
+
 	/**
 	 * Set the bindings for values
 	 */
-	private void setPropertiesListeners() {
-		Platform.runLater(() -> {
-			this.generation.textProperty().bind(ViewDataManager.getInstance().getGeneration().asString());
-			this.elapsedTime.textProperty().bind(ViewDataManager.getInstance().getElapsedTime().asString());
-			this.aliveCells.textProperty().bind(ViewDataManager.getInstance().getAliveCells().asString());
-			this.avgElapsedTime.textProperty().bind(ViewDataManager.getInstance().getAvgElapsedTime().asString());
-			
-			this.loadingLabel.textProperty().bind(ViewDataManager.getInstance().getMessage());
-			
-			this.sliderValue.textProperty().bind(this.slider.valueProperty().asString("%.0f"));
+	private void setPropertiesListeners() {		
+		this.generation.textProperty().bind(ViewDataManager.getInstance().getGeneration().asString());
+		this.elapsedTime.textProperty().bind(ViewDataManager.getInstance().getElapsedTime().asString());
+		this.aliveCells.textProperty().bind(ViewDataManager.getInstance().getAliveCells().asString());
+		this.avgElapsedTime.textProperty().bind(ViewDataManager.getInstance().getAvgElapsedTime().asString());
+		
+		this.loadingLabel.textProperty().bind(ViewDataManager.getInstance().getMessage());
+		
+		this.slider.valueProperty().addListener(listener -> {	
+			final int subdivision = (int) (this.slider.getValue() / 100);
+			this.sliderValue.setText("" + (subdivision * 100));
 		});
 	}
 	
@@ -209,12 +225,16 @@ public class MenuPanel extends VBox {
 			gridActor.tell(new GridActor.InitGridMsg(dimension.get().width, dimension.get().height, viewActor), ActorRef.noSender());
 			viewActor.tell(new ViewActor.StartVisualizationMsg(), ActorRef.noSender());
 			gridActor.tell(new GridActor.StartGameMsg(), ActorRef.noSender());
+			this.isStarted = true;
 			
 			//Getting started
 			Platform.runLater(() -> {
 				this.start.setDisable(true);
 				this.stop.setDisable(false);
 				this.reset.setDisable(true);
+				
+				this.mapWidth.setDisable(true);
+				this.mapHeight.setDisable(true);
 			});
 
 		}
