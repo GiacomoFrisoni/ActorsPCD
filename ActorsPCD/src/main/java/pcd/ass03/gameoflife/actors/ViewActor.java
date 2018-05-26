@@ -19,7 +19,7 @@ import pcd.ass03.gameoflife.view.ViewDataManager;
  */
 public class ViewActor extends AbstractActor {
 	
-	private static final long DEFAULT_REFRESH_RATE_MILLIS = 2000; 
+	private static final long DEFAULT_REFRESH_RATE_MILLIS = 1000;
 	
 	private ActorRef scheduler;
 	private final View view;
@@ -36,7 +36,15 @@ public class ViewActor extends AbstractActor {
 	 */
 	public static final class StartVisualizationMsg { }
 	
+	/**
+	 * This message allows to stop the game visualization.
+	 */
 	public static final class StopVisualizationMsg { }
+	
+	/**
+	 * This message allows to reset the game visualization.
+	 */
+	public static final class ResetVisualizationMsg { }
 	
 	/**
 	 * This message contains the results of a generation that must be displayed.
@@ -124,6 +132,7 @@ public class ViewActor extends AbstractActor {
 					this.scheduler.tell(new SchedulerActor.ChangeRateMsg(msg.refreshRate), ActorRef.noSender());
 				})
 				.match(GenerationResultsMsg.class, msg -> this.generationsNotShown.add(msg))
+				.match(ResetVisualizationMsg.class, msg -> this.generationsNotShown.clear())
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
 		
@@ -152,6 +161,7 @@ public class ViewActor extends AbstractActor {
 					// Goes into paused state
 					getContext().become(this.pausedBehavior);
 				})
+				.match(ResetVisualizationMsg.class, msg -> this.generationsNotShown.clear())
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
 	}

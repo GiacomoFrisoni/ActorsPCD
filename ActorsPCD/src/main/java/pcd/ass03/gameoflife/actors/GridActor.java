@@ -152,10 +152,13 @@ public class GridActor extends AbstractActorWithStash {
 					});
 					getContext().become(receiveBuilder()
 							.match(Terminated.class, t -> this.cellsActorsMap.values().contains(t.actor()), t -> {
-								System.out.println(t.actor().toString() + "MORTO");
+								this.nTerminatedCells++;
+								if (this.nTerminatedCells == this.cellsActorsMap.size()) {
+									initialize(resetMsg.getWidth(), resetMsg.getHeight(), resetMsg.getView());
+									getContext().unbecome();
+								}
 							})
-							.matchAny(msg -> log.info("Received unknown message: " + msg))
-							.build());
+							.build(), false);
 				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
@@ -203,9 +206,10 @@ public class GridActor extends AbstractActorWithStash {
 								this.nTerminatedCells++;
 								if (this.nTerminatedCells == this.cellsActorsMap.size()) {
 									initialize(resetMsg.getWidth(), resetMsg.getHeight(), resetMsg.getView());
+									getContext().unbecome();
 								}
 							})
-							.build());
+							.build(), false);
 				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
