@@ -278,16 +278,6 @@ public class GridActor extends AbstractActorWithStash {
 	}
 	
 	@Override
-	public void preStart() {
-		getContext().getSystem().scheduler().scheduleOnce(
-				Duration.create(5, TimeUnit.SECONDS),
-				getSelf(),
-				new InitGridMsg(10, 10, null),
-				getContext().system().dispatcher(),
-				ActorRef.noSender());
-	}
-	
-	@Override
 	public Receive createReceive() {
 		return this.initializingBehavior;
 	}

@@ -6,6 +6,7 @@ import java.util.Optional;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import javafx.application.Platform;
+import javafx.beans.property.IntegerProperty;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -18,7 +19,9 @@ import pcd.ass03.gameoflife.actors.GridActor;
 import pcd.ass03.gameoflife.actors.ViewActor;
 
 public class MenuPanel extends VBox {
-
+	
+	private static final double DEFAULT_REFRESH_RATE = 1000;
+	
 	@FXML private TextField mapWidth, mapHeight;
 	@FXML private MiniMap miniMap;
 	@FXML private Pane miniMapContainer;
@@ -36,6 +39,7 @@ public class MenuPanel extends VBox {
 		
 		if (!result.isPresent()) {
 			this.errorLabel.setVisible(false);
+			this.slider.setValue(DEFAULT_REFRESH_RATE);
 			this.setActionListeners();
 			this.setPropertiesListeners();		
 		} else {
@@ -177,12 +181,16 @@ public class MenuPanel extends VBox {
 	 * Set the bindings for values
 	 */
 	private void setPropertiesListeners() {
-		this.generation.textProperty().bind(ViewDataManager.getInstance().getGeneration().asString());
-		this.elapsedTime.textProperty().bind(ViewDataManager.getInstance().getElapsedTime().asString());
-		this.aliveCells.textProperty().bind(ViewDataManager.getInstance().getAliveCells().asString());
-		this.avgElapsedTime.textProperty().bind(ViewDataManager.getInstance().getAvgElapsedTime().asString());
-		
-		this.loadingLabel.textProperty().bind(ViewDataManager.getInstance().getMessage());
+		Platform.runLater(() -> {
+			this.generation.textProperty().bind(ViewDataManager.getInstance().getGeneration().asString());
+			this.elapsedTime.textProperty().bind(ViewDataManager.getInstance().getElapsedTime().asString());
+			this.aliveCells.textProperty().bind(ViewDataManager.getInstance().getAliveCells().asString());
+			this.avgElapsedTime.textProperty().bind(ViewDataManager.getInstance().getAvgElapsedTime().asString());
+			
+			this.loadingLabel.textProperty().bind(ViewDataManager.getInstance().getMessage());
+			
+			this.sliderValue.textProperty().bind(this.slider.valueProperty().asString("%.0f"));
+		});
 	}
 	
 	/**
