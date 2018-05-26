@@ -2,11 +2,8 @@ package pcd.ass03.gameoflife.view;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleLongProperty;
-import javafx.beans.property.SimpleStringProperty;
 
 public class ViewDataManager {
-	
-	private final static String IDLE_MESSAGE = "Idle";
 	
 	private static volatile ViewDataManager singleton;
 	

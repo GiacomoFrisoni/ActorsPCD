@@ -54,14 +54,15 @@
 			<Button prefWidth="$defaultWidth" fx:id="stop" disable="true">Stop</Button>
 			<Button prefWidth="$defaultWidth" fx:id="reset" disable="true">Reset</Button>
 		</VBox>
-		
+		<!--
 		<VBox fx:id="loadingStatus">
-			<ProgressBar prefWidth="$defaultWidth" fx:id="progress"></ProgressBar>
-		</VBox>
+			  <ProgressBar prefWidth="$defaultWidth" fx:id="progress"></ProgressBar>
+		</VBox>-->
 	</VBox>
 	
 	<!-- MiniMap -->
 	<VBox>
+		<ProgressBar prefWidth="$defaultWidth" fx:id="progress"></ProgressBar>
 		<Pane fx:id="miniMapContainer" id="miniMapContainer">
 			<MiniMap fx:id="miniMap" width="$defaultWidth" height="$defaultWidth"></MiniMap>
 		</Pane>

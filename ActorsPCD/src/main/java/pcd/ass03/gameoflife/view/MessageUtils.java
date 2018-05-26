@@ -75,10 +75,11 @@ public class MessageUtils {
 			alert.setContentText(msg);
 			System.out.println(msg);
 		
-			if (action != null)
+			if (action != null) {
 				alert.showAndWait().ifPresent(action);
-			else
+			} else {
 				alert.showAndWait();
+			}
 		});
 	}
 	
@@ -91,7 +92,13 @@ public class MessageUtils {
 	 * 		the occurred exception
 	 */
 	public static void showFXMLException(final String component, final String exception) {
-		showMessage(AlertType.ERROR, ERROR_TITLE, ExceptionType.FXML_EXCEPTION.getHeader(), component + " " + FXML_ERROR_MESSAGE, exception, null);
+		showMessage(AlertType.ERROR, ERROR_TITLE, ExceptionType.FXML_EXCEPTION.getHeader(), component + " " + FXML_ERROR_MESSAGE, exception, new Consumer<ButtonType>() {		
+			@Override
+			public void accept(ButtonType t) {
+				Platform.exit();
+				System.exit(0);
+			}
+		});
 	}
 	
 	/**

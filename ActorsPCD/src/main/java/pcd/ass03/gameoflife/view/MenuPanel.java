@@ -36,7 +36,7 @@ public class MenuPanel extends VBox {
 	
 	public MenuPanel() {
 		Optional<String> result = ViewUtils.loadFXML(this, "MenuPanel.fxml");
-		
+
 		if (!result.isPresent()) {
 			this.errorLabel.setVisible(false);
 			this.slider.setValue(DEFAULT_REFRESH_RATE);
@@ -44,7 +44,7 @@ public class MenuPanel extends VBox {
 			this.setActionListeners();
 			this.setPropertiesListeners();	
 		} else {
-			MessageUtils.showFXMLException(this.getClass().getSimpleName(), result.get());
+			MessageUtils.showFXMLException(this.getClass().getSimpleName(), result.get());			
 		}
 	}
 	
@@ -53,7 +53,7 @@ public class MenuPanel extends VBox {
 	 */
 	public void init() {
 		this.miniMap.setWidth(this.miniMapContainer.getWidth());
-		this.miniMap.setHeight(this.miniMapContainer.getHeight());
+		this.miniMap.setHeight(this.miniMapContainer.getHeight());	
 	}
 	
 	/**

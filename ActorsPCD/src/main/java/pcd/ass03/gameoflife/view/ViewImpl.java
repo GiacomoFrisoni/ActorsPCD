@@ -23,11 +23,8 @@ public class ViewImpl extends BorderPane implements View {
 	private Stage stage;
 	private ActorRef gridActor, viewActor;
 	
-	@FXML 
-	private CellMapViewer cellMapViewer;
-	
-	@FXML 
-	private MenuPanel menuPanel;
+	@FXML private CellMapViewer cellMapViewer;
+	@FXML private MenuPanel menuPanel;
 	
 	public ViewImpl(final Stage stage) {
 		//Try to load FXML resource

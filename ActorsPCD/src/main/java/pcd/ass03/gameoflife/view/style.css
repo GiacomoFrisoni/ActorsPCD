@@ -9,7 +9,7 @@
 	/*@SuppressWarning*/ buttonColorHover: derive(buttonColor, +15%);
 	/*@SuppressWarning*/ buttonColorPressed: derive(buttonColorHover, +15%);
 	
-	/*@SuppressWarning*/ progressColor: #4286f4;
+	/*@SuppressWarning*/ progressColor: backgroundColor;
 	
 }
 

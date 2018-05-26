@@ -133,36 +133,38 @@ public class CellMapViewer extends BorderPane {
 	 */
 	private void draw() {
 		if (cells != null) {	
-			//Starting position = offset * drawable cells
-			final int xStartPos = xPos * drawableXCells;
-			final int yStartPos = yPos * drawableYCells;		
-			
-			//Stop position = drawable cells OR the cells remaining to draw
-			final int xStopPos = Math.min(drawableXCells, (actualXMap - (drawableXCells * xPos)));
-			final int yStopPos = Math.min(drawableYCells, (actualYMap - (drawableYCells * yPos)));
-			
-			
-			Platform.runLater(() -> {
-				final GraphicsContext gc = cellMap.getGraphicsContext2D();
-				gc.clearRect(0, 0, cellMap.getWidth(), cellMap.getHeight());
-				gc.setFill(ALIVE_CELL_COLOR);
+			if (!cells.isEmpty()) {
+				//Starting position = offset * drawable cells
+				final int xStartPos = xPos * drawableXCells;
+				final int yStartPos = yPos * drawableYCells;		
 				
-				for (int y = 0; y < yStopPos; y++) {
-					for (int x = 0; x < xStopPos; x++) {
-						//Get the point in right place (i + offset) (j + offset)
-						final Boolean value = cells.get(new Point(x + (xStartPos), y + (yStartPos)));
-						
-						//Check if it's null and it's alive
-						if (value != null) {
-							if (value) {
-		        				gc.fillRect(x * CELL_OFFSET, y * CELL_OFFSET, CELL_SIZE, CELL_SIZE);		   
-							}	
-						} else {
-							System.out.println("[" + x + ", " + y + "] - [" + (x+xStartPos) + ", " + (y+yStartPos) + "] is not present in the set. This shouldn't happen.");
+				//Stop position = drawable cells OR the cells remaining to draw
+				final int xStopPos = Math.min(drawableXCells, (actualXMap - (drawableXCells * xPos)));
+				final int yStopPos = Math.min(drawableYCells, (actualYMap - (drawableYCells * yPos)));
+				
+				
+				Platform.runLater(() -> {
+					final GraphicsContext gc = cellMap.getGraphicsContext2D();
+					gc.clearRect(0, 0, cellMap.getWidth(), cellMap.getHeight());
+					gc.setFill(ALIVE_CELL_COLOR);
+					
+					for (int y = 0; y < yStopPos; y++) {
+						for (int x = 0; x < xStopPos; x++) {
+							//Get the point in right place (i + offset) (j + offset)
+							final Boolean value = cells.get(new Point(x + (xStartPos), y + (yStartPos)));
+							
+							//Check if it's null and it's alive
+							if (value != null) {
+								if (value) {
+			        				gc.fillRect(x * CELL_OFFSET, y * CELL_OFFSET, CELL_SIZE, CELL_SIZE);		   
+								}	
+							} else {
+								System.out.println("[" + x + ", " + y + "] - [" + (x+xStartPos) + ", " + (y+yStartPos) + "] is not present in the set. This shouldn't happen.");
+							}
 						}
 					}
-				}
-			});
+				});
+			}
 		}
 	}
 	
@@ -171,30 +173,46 @@ public class CellMapViewer extends BorderPane {
 	 */
 	private void setActionListeners() {
 		this.left.setOnMouseClicked(e -> {
-			if (this.xPos > 0) {
-				this.xPos -= 1;
-				updateState();
+			if (cells != null) {
+				if (!cells.isEmpty()) {
+					if (this.xPos > 0) {
+						this.xPos -= 1;
+						updateState();
+					}
+				}
 			}
 		});
 		
 		this.top.setOnMouseClicked(e -> {
-			if (this.yPos > 0) {
-				this.yPos -= 1;
-				updateState();
+			if (cells != null) {
+				if (!cells.isEmpty()) {
+					if (this.yPos > 0) {
+						this.yPos -= 1;
+						updateState();
+					}
+				}
 			}
 		});
 		
 		this.right.setOnMouseClicked(e -> {
-			if (this.xPos < this.maxXMapNeeded) {
-				this.xPos += 1;
-				updateState();
+			if (cells != null) {
+				if (!cells.isEmpty()) {
+					if (this.xPos < this.maxXMapNeeded) {
+						this.xPos += 1;
+						updateState();
+					}
+				}
 			}
 		});
 		
 		this.bottom.setOnMouseClicked(e -> {
-			if (this.yPos < this.maxYMapNeeded) {
-				this.yPos += 1;
-				updateState();
+			if (cells != null) {
+				if (!cells.isEmpty()) {
+					if (this.yPos < this.maxYMapNeeded) {
+						this.yPos += 1;
+						updateState();
+					}
+				}
 			}
 		});
 	}
