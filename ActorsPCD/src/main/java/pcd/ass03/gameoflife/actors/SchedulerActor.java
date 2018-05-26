@@ -25,6 +25,18 @@ public class SchedulerActor extends AbstractActor {
 	public static final class StopSchedulerMsg { }
 	
 	public static final class TickMsg { }
+	
+	public static final class ChangeRateMsg {
+		private final int rate;
+		
+		public ChangeRateMsg(final int rate) {
+			this.rate = rate;
+		}
+		
+		public int getRate() {
+			return this.rate;
+		}
+	}
 
 	public static Props props(final long rate, final ActorRef subscriber) {
 		return Props.create(SchedulerActor.class, rate, subscriber);
@@ -40,13 +52,24 @@ public class SchedulerActor extends AbstractActor {
 				.match(StartSchedulerMsg.class, msg -> {
 					createScheduledRefresh(this.rate);
 					getContext().become(this.playingBehavior);
-				}).matchAny(msg -> log.info("Received unknown message: " + msg)).build();
+				})
+				.match(ChangeRateMsg.class, msg -> {
+					createScheduledRefresh(msg.getRate());
+				})
+				.matchAny(msg -> log.info("Received unknown message: " + msg))
+				.build();
 		
 		this.playingBehavior = receiveBuilder()
-				.matchEquals(StopSchedulerMsg.class, msg -> {
+				.match(StopSchedulerMsg.class, msg -> {
 					this.refreshSchedule.cancel();
 					getContext().become(this.stoppedBehavior);
-				}).matchAny(msg -> log.info("Received unknown message: " + msg)).build();
+				})
+				.match(ChangeRateMsg.class, msg -> {
+					this.refreshSchedule.cancel();
+					createScheduledRefresh(msg.getRate());
+				})
+				.matchAny(msg -> log.info("Received unknown message: " + msg))
+				.build();
 	}
 
 	private void createScheduledRefresh(final long refreshRate) {

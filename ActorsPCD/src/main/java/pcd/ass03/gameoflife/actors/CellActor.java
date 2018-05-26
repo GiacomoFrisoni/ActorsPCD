@@ -13,6 +13,7 @@ import akka.event.LoggingAdapter;
 /**
  * This actor represents a cell for the Conway's Game Of Life.
  * With the adopted solution, the generation completion requires N + 1 messages for each cell.
+ * 
  */
 public class CellActor extends AbstractActorWithStash {
 	
@@ -26,7 +27,6 @@ public class CellActor extends AbstractActorWithStash {
 	private int aliveNeighbours;
 	private int nextAliveNeighbours;
 	
-	private int arrivedNeighboursStates;
 	private boolean stateChanged;
 	private int nArrivedNextStateNeighbours;
 
@@ -153,7 +153,6 @@ public class CellActor extends AbstractActorWithStash {
 		this.aliveNeighbours = 0;
 		this.nextAliveNeighbours = 0;
 		
-		this.arrivedNeighboursStates = 0;
 		this.stateChanged = false;
 		this.nArrivedNextStateNeighbours = 0;
 		
@@ -171,25 +170,19 @@ public class CellActor extends AbstractActorWithStash {
 								this.nextState = stateMsg.getState();
 								this.neighbours.forEach(n -> n.tell(new NeighbourStateMsg(this.nextState), ActorRef.noSender()));
 								// If the state is configured and all the neighbors have been notified, initialization is complete...
-								if (this.arrivedNeighboursStates == N_NEIGHBOURS) {									
+								if (this.nArrivedNextStateNeighbours == N_NEIGHBOURS) {
 									unstashAll();
-									getContext().become(this.activeBehavior);						
-									
+									getContext().become(this.activeBehavior);
 								} else {
 									// ... Otherwise changes the behavior: once its state has been set, it can no longer be changed directly
 									getContext().become(receiveBuilder()
 											.match(NeighbourStateMsg.class, neighbourMsg -> {
-												this.arrivedNeighboursStates++;
+												this.nArrivedNextStateNeighbours++;
 												if (neighbourMsg.getNeighbourState()) {
 													this.nextAliveNeighbours++;
 												}
 												// Checks if the initialization is completed
-												if (this.arrivedNeighboursStates == N_NEIGHBOURS) {
-													String mesg = "[" + x + ", " + y + "]";
-													mesg += " Current: " + (nextState ? "alive" : "dead ");
-													mesg += " Neighbours: " + this.nextAliveNeighbours;
-													//System.out.println(mesg);
-													
+												if (this.nArrivedNextStateNeighbours == N_NEIGHBOURS) {
 													unstashAll();
 													getContext().become(this.activeBehavior);										
 												}
@@ -203,7 +196,7 @@ public class CellActor extends AbstractActorWithStash {
 							})
 							// ... Or it can be notified by a neighbor
 							.match(NeighbourStateMsg.class, neighbourMsg -> {
-								this.arrivedNeighboursStates++;
+								this.nArrivedNextStateNeighbours++;
 								if (neighbourMsg.getNeighbourState()) {
 									this.nextAliveNeighbours++;
 								}
@@ -215,13 +208,12 @@ public class CellActor extends AbstractActorWithStash {
 							.build());
 				})
 				.match(NeighbourNextStateMsg.class, msg -> stash())
-				.matchAny(msg -> this.log.info("0 Received unknown message: " + msg))
+				.matchAny(msg -> this.log.info("Received unknown message: " + msg))
 				.build();
 		
 		this.activeBehavior = receiveBuilder()
 				.match(PrepareNextGenerationMsg.class, nextMsg -> {
 					// Resets data
-					this.arrivedNeighboursStates = 0;
 					this.stateChanged = false;
 					this.nArrivedNextStateNeighbours = 0;
 					// Swaps
@@ -230,8 +222,8 @@ public class CellActor extends AbstractActorWithStash {
 					unstashAll();
 					getContext().become(receiveBuilder()
 							.match(ComputeMsg.class, computeMsg -> {
-								this.stateChanged = false;
 								// Considers the next state as unchanged by default
+								this.stateChanged = false;
 								this.nextState = this.state;
 								
 								// Evaluates an update only if necessary									
@@ -249,23 +241,11 @@ public class CellActor extends AbstractActorWithStash {
 									}
 								}
 								
-								
-								// Sends the result for the current generation
-								//computeMsg.getSender().tell(new GridActor.CellNextStateMsg(new Point(this.x, this.y), this.nextState), ActorRef.noSender());
-								
 								// Sends the computed state to the neighbors (even if unchanged)
 								this.neighbours.forEach(n -> n.tell(new NeighbourNextStateMsg(this.nextState, this.stateChanged), ActorRef.noSender()));
 								
 								// The computation of a cell is completed if its next state and that of the neighbors have been determined
 								if (this.nArrivedNextStateNeighbours == N_NEIGHBOURS) {
-									/*String mesg2 = "[" + x + ", " + y + "]";
-									mesg2 += " | Current: " + (state ? "alive" : "dead ");
-									mesg2 += " | Neighbours: " + this.aliveNeighbours;
-									mesg2 += " | Next: " + (nextState ? "alive" : "dead ");
-									mesg2 += " | Next neighbouts: " + this.nextAliveNeighbours;
-									mesg2 += " " + this.nArrivedNextStateNeighbours + "=" + N_NEIGHBOURS + "";
-									System.out.println(mesg2);*/
-									
 									computeMsg.getSender().tell(new GridActor.CellNextStateMsg(new Point(this.x, this.y), this.nextState), ActorRef.noSender());
 									unstashAll();
 									getContext().become(this.activeBehavior);
@@ -276,17 +256,8 @@ public class CellActor extends AbstractActorWithStash {
 												this.nArrivedNextStateNeighbours++;
 												if (stateMsg.isNeighbourStateChanged()) {
 													this.nextAliveNeighbours += stateMsg.getNeighbourNextState() ? 1 : -1;
-													//System.out.println("[" + x + ", " + y + "] " + getSender() + " told me he's " + (stateMsg.getNeighbourNextState() ? "alive" : "dead"));
 												}
 												if (this.nArrivedNextStateNeighbours == N_NEIGHBOURS) {
-													/*String mesg2 = "[" + x + ", " + y + "]";
-													mesg2 += " | Current: " + (state ? "alive" : "dead ");
-													mesg2 += " | Neighbours: " + this.aliveNeighbours;
-													mesg2 += " | Next: " + (nextState ? "alive" : "dead ");
-													mesg2 += " | Next neighbouts: " + this.nextAliveNeighbours;
-													mesg2 += " " + this.nArrivedNextStateNeighbours + "=" + N_NEIGHBOURS + "";
-													System.out.println(mesg2);*/
-													
 													computeMsg.getSender().tell(new GridActor.CellNextStateMsg(new Point(this.x, this.y), this.nextState), ActorRef.noSender());
 													unstashAll();
 													getContext().become(this.activeBehavior);
@@ -294,7 +265,7 @@ public class CellActor extends AbstractActorWithStash {
 											})
 											.match(PrepareNextGenerationMsg.class, msg -> stash())
 											.match(ComputeMsg.class, msg -> stash())
-											.matchAny(msg -> this.log.info("1 Received unknown message: " + msg))
+											.matchAny(msg -> this.log.info("Received unknown message: " + msg))
 											.build());
 								}
 							})
@@ -305,12 +276,12 @@ public class CellActor extends AbstractActorWithStash {
 								}
 							})
 							.match(PrepareNextGenerationMsg.class, msg -> stash())
-							.matchAny(msg -> this.log.info("2 Received unknown message: " + msg))
+							.matchAny(msg -> this.log.info("Received unknown message: " + msg))
 							.build());
 				})
 				.match(ComputeMsg.class, msg -> stash())
 				.match(NeighbourNextStateMsg.class, msg -> stash())
-				.matchAny(msg -> this.log.info("3 Received unknown message: " + msg))
+				.matchAny(msg -> this.log.info("Received unknown message: " + msg))
 				.build();
 	}
 	
