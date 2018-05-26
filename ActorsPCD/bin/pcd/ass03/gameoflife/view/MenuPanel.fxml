@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.Double?>
+<?import java.lang.Integer?>
+
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ProgressBar?>
+<?import pcd.ass03.gameoflife.view.MiniMap?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.control.Slider?>
+
+<fx:root xmlns:fx="http://javafx.com/fxml/1" type="VBox" spacing="$bigSpacing" prefWidth="$defaultWidth"  stylesheets="@style.css">
+	<fx:define>
+		<Integer fx:id="smallSpacing" fx:value="5" />
+		<Integer fx:id="mediumSpacing" fx:value="10" />
+		<Integer fx:id="bigSpacing" fx:value="15" />
+		
+		<Integer fx:id="componentMargin" fx:value="15" />
+	
+		<Double fx:id="smallWidth" fx:value="70" />
+		<Double fx:id="mediumWidth" fx:value="120" />
+		<Double fx:id="defaultWidth" fx:value="270" />
+	</fx:define>
+	
+	<!-- Spacing for good looking view -->
+	<padding>
+		<Insets top="$componentMargin" left="$componentMargin" bottom="$componentMargin" right="$componentMargin"></Insets>
+	</padding>
+	
+	<!-- Map configuration (W x H) -->
+	<VBox spacing="$smallSpacing">
+		<HBox alignment="CENTER_LEFT" spacing="$mediumSpacing">
+			<Label prefWidth="$smallWidth" text="Width:"></Label>
+			<TextField fx:id="mapWidth"></TextField>
+		</HBox>
+		
+		<HBox alignment="CENTER_LEFT" spacing="$mediumSpacing">
+			<Label prefWidth="$smallWidth" text="Height:"></Label>
+			<TextField fx:id="mapHeight"></TextField>
+		</HBox>
+		
+		<Label id="errorLabel" fx:id="errorLabel" text="Only numeric values bigger than 0"></Label>
+	</VBox>
+	
+	<!-- Buttons -->
+	<VBox spacing="10">
+		<VBox spacing="5">
+			<Button prefWidth="$defaultWidth" fx:id="start">Start</Button>
+			<Button prefWidth="$defaultWidth" fx:id="stop" disable="true">Stop</Button>
+			<Button prefWidth="$defaultWidth" fx:id="reset" disable="true">Reset</Button>
+		</VBox>
+		
+		<VBox fx:id="loadingStatus">
+			<Label fx:id="loadingLabel"></Label>
+			<ProgressBar prefWidth="$defaultWidth" fx:id="progress"></ProgressBar>
+		</VBox>
+	</VBox>
+	
+	<!-- MiniMap -->
+	<VBox>
+		<Pane fx:id="miniMapContainer" id="miniMapContainer">
+			<MiniMap fx:id="miniMap" width="$defaultWidth" height="$defaultWidth"></MiniMap>
+		</Pane>
+		<HBox spacing="5">
+			<Label prefWidth="$mediumWidth" text="Current position:"></Label>
+			<Label fx:id="currentPosition" text="0, 0"></Label>
+		</HBox>
+		<HBox spacing="5">
+			<Label prefWidth="$mediumWidth" text="Viewable cells:"></Label>
+			<Label fx:id="viewableCells" text="W: 144, H: 88"></Label>
+		</HBox>
+	</VBox>
+	
+	<!-- Settings for refresh -->
+	<VBox>
+		<HBox spacing="5">
+			<Label text="Minimum refresh time:"></Label>
+			<Label fx:id="sliderValue"></Label>
+		</HBox>
+		<Slider fx:id="slider" prefWidth="$defaultWidth" min="100" max="4000" snapToTicks="true" minorTickCount="0" majorTickUnit="100" showTickMarks="true"  blockIncrement="100"></Slider>
+	</VBox>
+	
+	<!-- Info about generations -->
+	<VBox spacing="0" alignment="TOP_LEFT">
+		<Label text="Generation"></Label>
+		<Label fx:id="generation" id="titleLabel" text="0"></Label>
+		
+		<Label text="Elapsed time"></Label>
+		<Label fx:id="elapsedTime" id="titleLabel" text="0"></Label>
+		
+		<Label text="Average elapsed time"></Label>
+		<Label fx:id="avgElapsedTime" id="titleLabel" text="0"></Label>
+		
+		<Label text="Alive cells"></Label>
+		<Label fx:id="aliveCells" id="titleLabel" text="0"></Label>
+	</VBox>
+	
+	
+</fx:root>
+

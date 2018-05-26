@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.BorderPane?>
+<?import pcd.ass03.gameoflife.view.CellMapViewer?>
+<?import pcd.ass03.gameoflife.view.MenuPanel?>
+
+<fx:root xmlns:fx="http://javafx.com/fxml/1" type="BorderPane" stylesheets="@style.css">
+	<center>
+		<CellMapViewer fx:id="cellMapViewer"></CellMapViewer>
+	</center>
+	
+	<right>
+		<MenuPanel fx:id="menuPanel"></MenuPanel>
+	</right>
+</fx:root>
+
