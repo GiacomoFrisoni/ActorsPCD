@@ -4,6 +4,7 @@ import java.awt.Dimension;
 import java.util.Optional;
 
 import akka.actor.ActorRef;
+import akka.actor.ActorSelection;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -145,8 +146,7 @@ public class MenuPanel extends VBox {
 		});
 		
 		this.stop.setOnMouseClicked(e -> {
-			//TODO Tell actor to stop
-			this.gridActor.tell("stop", ActorRef.noSender());
+			this.gridActor.tell(new GridActor.PauseGameMsg(), ActorRef.noSender());
 			
 			//Enable the button
 			Platform.runLater(() -> {
@@ -157,6 +157,7 @@ public class MenuPanel extends VBox {
 		});
 		
 		this.reset.setOnMouseClicked(e -> {
+			//TODO tell actor to reset
 			this.gridActor.tell("reset", ActorRef.noSender());
 			
 			//Reset buttons
@@ -168,8 +169,7 @@ public class MenuPanel extends VBox {
 		});
 		
 		this.slider.setOnMouseReleased(e -> {
-			//TODO Scheduler refresh ratio
-			System.out.println("Changed value in: " + this.slider.getValue());
+			this.viewActor.tell(new ViewActor.ChangeRefreshRateMsg((long)this.slider.getValue()), ActorRef.noSender());
 		});
 	}
 	
@@ -198,7 +198,6 @@ public class MenuPanel extends VBox {
 			this.cellMapViewer.setDimension(dimension.get());
 			
 			//Sending message, you can start now!
-			viewActor.tell(new ViewActor.InitViewMsg(dimension.get().width, dimension.get().height), ActorRef.noSender());
 			gridActor.tell(new GridActor.InitGridMsg(dimension.get().width, dimension.get().height, viewActor), ActorRef.noSender());
 			viewActor.tell(new ViewActor.StartVisualizationMsg(), ActorRef.noSender());
 			gridActor.tell(new GridActor.StartGameMsg(), ActorRef.noSender());
