@@ -1,21 +1,18 @@
 package pcd.ass03.chat.actors;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import akka.actor.AbstractActor;
+import akka.actor.AbstractActorWithStash;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import pcd.ass03.chat.utilities.ClientKnowledge;
-import pcd.ass03.chat.utilities.Pair;
 
-public class ClientActor extends AbstractActor {
+public class ClientActor extends AbstractActorWithStash {
 
 	private final ActorSelection registerRef;
-	private final ClientKnowledge knowledge;
+	private ClientKnowledge knowledge;
 	
 	private final LoggingAdapter log;
 	
@@ -60,6 +57,22 @@ public class ClientActor extends AbstractActor {
 	public Receive createReceive() {
 		return receiveBuilder()
 				.match(ClientMsg.class, msg -> {
+					/*
+					 * - This client should have received all the preceding messages that the sender client sent.
+					 * - This client should have received all the messages sent by other clients that the sender client
+					 *   knows-of before sending the current message.
+					 */
+					if ((this.knowledge.getNumberOfMessagesSent(msg.getSender(), getSelf())
+							== msg.getKnowledge().getNumberOfMessagesSent(msg.getSender(), getSelf()) - 1)
+							|| (false)) {
+						
+					} else {
+						stash();
+					}
+					// Upon delivery keeps the greatest knowledge
+					if (msg.getKnowledge().compareTo(this.knowledge) > 0) {
+						this.knowledge = new ClientKnowledge(msg.getKnowledge());
+					}
 				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
