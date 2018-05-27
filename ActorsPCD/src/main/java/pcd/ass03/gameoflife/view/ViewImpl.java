@@ -125,9 +125,9 @@ public class ViewImpl extends BorderPane implements View {
 	 */
 	private void setIcons() {
 		this.stage.getIcons().addAll(
-				new Image(("file:res/icon16x16.png")),
-				new Image(("file:res/icon32x32.png")),
-				new Image(("file:res/icon64x64.png")));
+				new Image(("file:res/icon_gol_16x16.png")),
+				new Image(("file:res/icon_gol_32x32.png")),
+				new Image(("file:res/icon_gol_64x64.png")));
 	}
 	
 	private void initInternalComponentSize() {

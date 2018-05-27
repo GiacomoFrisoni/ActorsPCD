@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.Double?>
+<?import java.lang.Integer?>
+
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.geometry.Insets?>
+
+<fx:root xmlns:fx="http://javafx.com/fxml/1" type="BorderPane" stylesheets="@style.css">
+	<fx:define>
+		<Double fx:id="spacing" fx:value="10" />
+		<Integer fx:id="margin" fx:value="15" />
+	</fx:define>
+	
+	<top>
+		<HBox spacing="$spacing" alignment="CENTER">
+			<padding>
+				<Insets top="$margin" right="$margin" bottom="$margin" left="$margin"/>
+			</padding>
+			
+			<Label HBox.hgrow="NEVER" text="Username:"></Label>
+			<TextField HBox.hgrow="ALWAYS" fx:id="username" promptText="Your username visible to others"></TextField>
+			<Button HBox.hgrow="NEVER" fx:id="login" text="LOGIN"></Button>
+		</HBox>
+	</top>
+	
+	<center>
+		<ListView fx:id="listview"></ListView>
+	</center>
+	
+	<bottom>
+		<HBox spacing="$spacing" alignment="CENTER">
+			<padding>
+				<Insets top="$margin" right="$margin" bottom="$margin" left="$margin"/>
+			</padding>
+			
+			<TextField HBox.hgrow="ALWAYS" fx:id="message" promptText="Type your message here"></TextField>
+			<Button HBox.hgrow="NEVER" fx:id="send" text="SEND"></Button>
+		</HBox>
+	</bottom>
+</fx:root>
+
