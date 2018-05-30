@@ -12,6 +12,10 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import pcd.ass03.chat.utilities.ClientKnowledgeImpl;
 
+/**
+ * This actor represents a chat client.
+ *
+ */
 public class ClientActor extends AbstractActorWithStash {
 
 	private final ActorSelection registerRef;
@@ -22,80 +26,76 @@ public class ClientActor extends AbstractActorWithStash {
 	
 	private final LoggingAdapter log;
 	
+	
 	/**
-	 * Message sent from register to client when a new actor join the chat. </br>
-	 * With this message client will update its internal references to others with this new one.
+	 * Message sent from the register to the client when a new client joins the chat.</br>
+	 * With this message the client will update its internal references to others with this new one.
 	 */
 	public static final class LoggedInClientMsg {
-		private final ActorRef actorRef;
+		private final ActorRef clientRef;
 		private final String username;
 		
-		public LoggedInClientMsg (final ActorRef actorRef, final String username) {
-			this.actorRef = actorRef;
+		public LoggedInClientMsg(final ActorRef clientRef, final String username) {
+			this.clientRef = clientRef;
 			this.username = username;
 		}
 
 		/**
-		 * Get the reference to actor that wants to join the chat
-		 * @return
-		 * 		reference to actor that wants to join the chat
+		 * @return the reference to the client that wants to join the chat
 		 */
-		public ActorRef getActorRef() {
-			return actorRef;
+		public ActorRef getClientRef() {
+			return this.clientRef;
 		}
 
 		/**
-		 * Get the username of the actor that wants to join the chat
-		 * @return
-		 * 		username of the actor that wants to join the chat
+		 * @return the username of the actor that wants to join the chat
 		 */
 		public String getUsername() {
-			return username;
+			return this.username;
 		}	
 	}
 
 	/**
-	 * Message sent from register to client when it joins the chat. </br>
-	 * With this message client will set all internal references to others already connected.
+	 * Message sent from the register to a new client when it joins the chat.</br>
+	 * With this message the client will set all its internal references to clients already connected.
 	 */
 	public static final class ExistingLoggedInClientsMsg {
-		private final Map<ActorRef, String> actorRefs;
+		private final Map<ActorRef, String> clientRefs;
 		
-		public ExistingLoggedInClientsMsg (final Map<ActorRef, String> actorRefs) {
-			this.actorRefs = actorRefs;
+		public ExistingLoggedInClientsMsg(final Map<ActorRef, String> clientRefs) {
+			this.clientRefs = clientRefs;
 		}
 		
 		/**
-		 * Get the map of all actors and their usernames
-		 * @return
-		 * 		map of all actors and their usernames
+		 * @return the connected clients and their usernames
 		 */
-		public Map<ActorRef, String> getActorRefs() {
-			return Collections.unmodifiableMap(this.actorRefs);
+		public Map<ActorRef, String> getClientsRefs() {
+			return Collections.unmodifiableMap(this.clientRefs);
 		}
 	}
 
 	/**
-	 * Message sent from register to client when one of clients just logged out. </br>
-	 * With this message client will delete the reference to the logged out client.
+	 * Message sent from the register to the client when one of the clients just logged out.</br>
+	 * With this message the client will delete the reference to the logged out client.
 	 */
 	public static final class LoggedOutClientMsg {
-		private final ActorRef actorRef;
+		private final ActorRef clientRef;
 		
-		public LoggedOutClientMsg(final ActorRef actorRef) {
-			this.actorRef = actorRef;
+		public LoggedOutClientMsg(final ActorRef clientRef) {
+			this.clientRef = clientRef;
 		}
 		
 		/**
-		 * Get the reference for the logged out client
-		 * @return
-		 * 		reference for the logged out client
+		 * @return the reference for the logged out client
 		 */
-		public ActorRef getActorRef() {
-			return this.actorRef;
+		public ActorRef getClientRef() {
+			return this.clientRef;
 		}
 	}
 	
+	/**
+	 * Message sent to the client in order to starts its delivering.
+	 */
 	public static final class SendingRequestMsg {
 		private final String content;
 		
@@ -103,13 +103,16 @@ public class ClientActor extends AbstractActorWithStash {
 			this.content = content;
 		}
 		
+		/**
+		 * @return the content of the message
+		 */
 		public String getContent() {
 			return this.content;
 		}
 	}
 	
 	/**
-	 * Message sent from client to client. </br>
+	 * Message sent from a client to another client.</br>
 	 * <i>No username is needed since all actors knows it already internally</i>
 	 */
 	public static final class ClientMsg {
@@ -124,27 +127,21 @@ public class ClientActor extends AbstractActorWithStash {
 		}
 		
 		/**
-		 * Get the reference to the sender of the message
-		 * @return
-		 * 		reference to the sender of the message
+		 * @return the reference to the sender of the message
 		 */
 		public ActorRef getSender() {
 			return this.sender;
 		}
 		
 		/**
-		 * Get the message content
-		 * @return
-		 * 		message content
+		 * @return the message content
 		 */
 		public String getContent() {
 			return this.content;
 		}
 		
 		/**
-		 * Get the knowledge of the sender
-		 * @return
-		 * 		knowledge of the sender
+		 * @return knowledge of the sender
 		 */
 		public ClientKnowledgeImpl getKnowledge() {
 			return this.knowledge;
@@ -152,11 +149,23 @@ public class ClientActor extends AbstractActorWithStash {
 	}
 
 	
-	
+	/**
+	 * Creates Props for a client actor.
+	 * 
+	 * @param username
+	 * 		the username of the client to be passed to the actor's constructor.
+	 * @return a Props for creating client actor, which can then be further configured
+	 */
 	public static Props props(final String username) {
 		return Props.create(ClientActor.class);
 	}
 	
+	/**
+	 * Creates a client actor.
+	 * 
+	 * @param username
+	 * 		the username of the client
+	 */
 	public ClientActor(final String username) {
 		this.knowledge = new ClientKnowledgeImpl();
 		this.clientsRefs = new HashMap<>();
@@ -172,12 +181,14 @@ public class ClientActor extends AbstractActorWithStash {
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
+				// Received a sending request in order to start delivering
 				.match(SendingRequestMsg.class, msg -> {
-					this.clientsRefs.entrySet().forEach(
-						clientRef -> clientRef.getKey().tell(new ClientMsg(getSelf(), msg.getContent(), this.knowledge), ActorRef.noSender())
-					);
+					this.clientsRefs.entrySet().forEach(clientRef -> {
+						this.knowledge.addMessage(getSelf(), clientRef.getKey());
+						clientRef.getKey().tell(new ClientMsg(getSelf(), msg.getContent(), this.knowledge), ActorRef.noSender());
+					});
 				})
-				//Received a new message from another client!
+				// Received a new message from another client!
 				.match(ClientMsg.class, msg -> {
 					/*
 					 * - This client should have received all the preceding messages that the sender client sent.
@@ -197,18 +208,18 @@ public class ClientActor extends AbstractActorWithStash {
 					// Upon delivery keeps the greatest knowledge
 					this.knowledge.maximize(msg.getKnowledge());
 				})
-				//I'm a new entry, register is telling me all the existing actors
+				// I'm a new logged client, register is telling me all the existing actors
 				.match(ExistingLoggedInClientsMsg.class, existingLoggedInClientsMsg -> {
 					this.clientsRefs.clear();
-					this.clientsRefs.putAll(existingLoggedInClientsMsg.getActorRefs());
+					this.clientsRefs.putAll(existingLoggedInClientsMsg.getClientsRefs());
 				})
-				//Register is informing me that new client is joining the chat!
+				// Register is informing me that new client is joining the chat!
 				.match(LoggedInClientMsg.class, loggedInClientMsg -> {
-					this.clientsRefs.put(loggedInClientMsg.getActorRef(), loggedInClientMsg.getUsername());
+					this.clientsRefs.put(loggedInClientMsg.getClientRef(), loggedInClientMsg.getUsername());
 				})
-				//Register is informing me that a client has left the chat!
+				// Register is informing me that a client has left the chat!
 				.match(LoggedOutClientMsg.class, loggedOutClientMsg -> {
-					this.clientsRefs.remove(loggedOutClientMsg.getActorRef());
+					this.clientsRefs.remove(loggedOutClientMsg.getClientRef());
 				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
