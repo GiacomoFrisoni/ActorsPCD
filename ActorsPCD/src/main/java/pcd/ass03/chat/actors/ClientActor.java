@@ -141,7 +141,7 @@ public class ClientActor extends AbstractActor {
 
 	
 	
-	public static Props props() {
+	public static Props props(final String username) {
 		return Props.create(ClientActor.class);
 	}
 	

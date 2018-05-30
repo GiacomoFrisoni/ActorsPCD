@@ -1,6 +1,12 @@
 package pcd.ass03.chat.utilities.view;
 
+import java.io.File;
+
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -14,7 +20,7 @@ import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
-import pcd.ass03.gameoflife.actors.ViewActor;
+import pcd.ass03.chat.actors.ClientActor;
 import pcd.ass03.gameoflife.view.MessageUtils;
 
 public class ClientView extends BorderPane {
@@ -27,7 +33,8 @@ public class ClientView extends BorderPane {
 	
 	private final Stage stage;
 	private final ObservableList<String> observableList;
-	private int i = 0;
+	private ActorRef client;
+	private ActorSystem system;
 	private boolean isLoggedIn = false;
 	 
 	@FXML private TextField username, message;
@@ -124,20 +131,54 @@ public class ClientView extends BorderPane {
 	}
 
 	private void logout() {
-		setOnLoginStatus();
+		if (destroyActor()) {
+			setOnLoginStatus();
+		}	
 	}
 	
 	private void login() {
-		setOnActiveStatus();
+		if (createActor()) {
+			setOnActiveStatus();
+		}
 	}
 	
 	private void sendMessage() {
 		if (!this.message.getText().isEmpty()) {
 			this.message.getStyleClass().remove("empty-message");
-			this.observableList.add(this.message.getText());
+			
 			this.message.clear();
 		} else {
 			this.message.getStyleClass().add("empty-message");
 		}
+	}
+	
+	private boolean createActor() {
+		//Toggle the error class
+		this.username.getStyleClass().remove("empty-message");
+		
+		//Check if it's OK
+		if (!this.username.getText().isEmpty()) {
+			//Generate system and actor
+			final Config config = ConfigFactory.parseFile(new File("../../chat/client.conf"));
+			this.system = ActorSystem.create("ClientSystem", config);
+			this.client = system.actorOf(ClientActor.props(this.username.getText()), "client");
+			
+			return true;
+			
+		} else {
+			this.username.getStyleClass().add("empty-message");
+			return false;
+		}	
+	}
+	
+	private boolean destroyActor() {
+		if (this.system != null) {
+			if (this.client != null) {
+				this.system.stop(this.client);
+				return true;
+			}
+		}
+		
+		return false;
 	}
 }
