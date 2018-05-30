@@ -4,20 +4,21 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import akka.actor.AbstractActor;
+import akka.actor.AbstractActorWithStash;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import pcd.ass03.chat.utilities.ClientKnowledge;
+import pcd.ass03.chat.utilities.ClientKnowledgeImpl;
 
-public class ClientActor extends AbstractActor {
+public class ClientActor extends AbstractActorWithStash {
 
 	private final ActorSelection registerRef;
-	private final ClientKnowledge knowledge;
-	private final Map<ActorRef, String> actorRefs;
+	
 	private final String username;
+	private ClientKnowledgeImpl knowledge;
+	private final Map<ActorRef, String> clientsRefs;
 	
 	private final LoggingAdapter log;
 	
@@ -95,6 +96,17 @@ public class ClientActor extends AbstractActor {
 		}
 	}
 	
+	public static final class SendingRequestMsg {
+		private final String content;
+		
+		public SendingRequestMsg(final String content) {
+			this.content = content;
+		}
+		
+		public String getContent() {
+			return this.content;
+		}
+	}
 	
 	/**
 	 * Message sent from client to client. </br>
@@ -103,9 +115,9 @@ public class ClientActor extends AbstractActor {
 	public static final class ClientMsg {
 		private final ActorRef sender;
 		private final String content;
-		private final ClientKnowledge knowledge;
+		private final ClientKnowledgeImpl knowledge;
 		
-		public ClientMsg(final ActorRef sender, final String content, final ClientKnowledge knowledge) {
+		public ClientMsg(final ActorRef sender, final String content, final ClientKnowledgeImpl knowledge) {
 			this.sender = sender;
 			this.content = content;
 			this.knowledge = knowledge;
@@ -134,7 +146,7 @@ public class ClientActor extends AbstractActor {
 		 * @return
 		 * 		knowledge of the sender
 		 */
-		public ClientKnowledge getKnowledge() {
+		public ClientKnowledgeImpl getKnowledge() {
 			return this.knowledge;
 		}
 	}
@@ -146,46 +158,59 @@ public class ClientActor extends AbstractActor {
 	}
 	
 	public ClientActor(final String username) {
-		this.knowledge = new ClientKnowledge();
-		this.actorRefs = new HashMap<>();
+		this.knowledge = new ClientKnowledgeImpl();
+		this.clientsRefs = new HashMap<>();
 		this.username = username;
 		
 		this.log = Logging.getLogger(getContext().getSystem(), this);
 		
-		// starts and connects the client to the remote server
+		// Starts and connects the client to the remote server
         this.registerRef = getContext().actorSelection("akka.tcp://ChatSystem@127.0.0.1:4552/user/register");
         this.registerRef.tell(new RegisterActor.ClientLoginMsg(getSelf(), this.username), ActorRef.noSender());
-     
 	}
 	
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
-				
+				.match(SendingRequestMsg.class, msg -> {
+					this.clientsRefs.entrySet().forEach(
+						clientRef -> clientRef.getKey().tell(new ClientMsg(getSelf(), msg.getContent(), this.knowledge), ActorRef.noSender())
+					);
+				})
 				//Received a new message from another client!
 				.match(ClientMsg.class, msg -> {
-					//TODO checks and magic on the view
+					/*
+					 * - This client should have received all the preceding messages that the sender client sent.
+					 * - This client should have received all the messages sent by other clients that the sender client
+					 *   knows-of before sending the current message.
+					 */
+					if ((this.knowledge.getNumberOfMessagesSent(msg.getSender(), getSelf())
+							== msg.getKnowledge().getNumberOfMessagesSent(msg.getSender(), getSelf()) - 1)
+							|| (this.clientsRefs.keySet().stream()
+									.filter(ref -> ref != getSelf())
+									.allMatch(ref -> this.knowledge.getNumberOfMessagesSent(ref, getSelf())
+											>= msg.getKnowledge().getNumberOfMessagesSent(ref, getSelf())))) {
+						// Message received :D
+					} else {
+						stash();
+					}
+					// Upon delivery keeps the greatest knowledge
+					this.knowledge.maximize(msg.getKnowledge());
 				})
-				
 				//I'm a new entry, register is telling me all the existing actors
 				.match(ExistingLoggedInClientsMsg.class, existingLoggedInClientsMsg -> {
-					this.actorRefs.clear();
-					this.actorRefs.putAll(existingLoggedInClientsMsg.getActorRefs());
+					this.clientsRefs.clear();
+					this.clientsRefs.putAll(existingLoggedInClientsMsg.getActorRefs());
 				})
-						
 				//Register is informing me that new client is joining the chat!
 				.match(LoggedInClientMsg.class, loggedInClientMsg -> {
-					this.actorRefs.put(loggedInClientMsg.getActorRef(), loggedInClientMsg.getUsername());
+					this.clientsRefs.put(loggedInClientMsg.getActorRef(), loggedInClientMsg.getUsername());
 				})
-				
 				//Register is informing me that a client has left the chat!
 				.match(LoggedOutClientMsg.class, loggedOutClientMsg -> {
-					this.actorRefs.remove(loggedOutClientMsg.getActorRef());
+					this.clientsRefs.remove(loggedOutClientMsg.getActorRef());
 				})
-				
-				//WTF are you sending to me?
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
-				
 				.build();
 	}
 

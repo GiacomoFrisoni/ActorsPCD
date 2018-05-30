@@ -1,11 +1,15 @@
 package pcd.ass03.chat.utilities;
 
+import java.util.Objects;
+
 public class Pair<X, Y> {
 
 	private final X first;
 	private final Y second;
 	
 	public Pair(final X first, final Y second) {
+		Objects.requireNonNull(first);
+		Objects.requireNonNull(second);
 		this.first = first;
 		this.second = second;
 	}
@@ -28,10 +32,10 @@ public class Pair<X, Y> {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		return obj instanceof Pair
-				&& this.first.equals(((Pair<?, ?>)obj).getFirst())
-				&& this.second.equals(((Pair<?, ?>)obj).getSecond());
+				&& this.first.equals(((Pair<?, ?>)obj).first)
+				&& this.second.equals(((Pair<?, ?>)obj).second);
 	}
 
 	@Override
