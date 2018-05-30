@@ -218,6 +218,7 @@ public class ClientActor extends AbstractActorWithStash {
 									.allMatch(ref -> this.knowledge.getNumberOfMessagesSent(ref, getSelf())
 											>= msg.getKnowledge().getNumberOfMessagesSent(ref, getSelf())))) {
 						// Message received :D
+						unstashAll();
 					} else {
 						stash();
 					}
@@ -228,14 +229,17 @@ public class ClientActor extends AbstractActorWithStash {
 				.match(ExistingLoggedInClientsMsg.class, existingLoggedInClientsMsg -> {
 					this.clientsRefs.clear();
 					this.clientsRefs.putAll(existingLoggedInClientsMsg.getClientsRefs());
+					this.knowledge.addNewClients(existingLoggedInClientsMsg.getClientsRefs().keySet(), this.clientsRefs.keySet());
 				})
 				// Register is informing me that new client is joining the chat!
 				.match(LoggedInClientMsg.class, loggedInClientMsg -> {
 					this.clientsRefs.put(loggedInClientMsg.getClientRef(), loggedInClientMsg.getUsername());
+					this.knowledge.addNewClient(loggedInClientMsg.getClientRef(), this.clientsRefs.keySet());
 				})
 				// Register is informing me that a client has left the chat!
 				.match(LoggedOutClientMsg.class, loggedOutClientMsg -> {
 					this.clientsRefs.remove(loggedOutClientMsg.getClientRef());
+					this.knowledge.deleteClient(loggedOutClientMsg.getClientRef());
 				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
