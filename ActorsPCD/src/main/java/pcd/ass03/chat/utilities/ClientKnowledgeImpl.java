@@ -1,5 +1,6 @@
 package pcd.ass03.chat.utilities;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -7,8 +8,9 @@ import java.util.Set;
 
 import akka.actor.ActorRef;
 
-public class ClientKnowledgeImpl implements ClientKnowledge {
+public class ClientKnowledgeImpl implements ClientKnowledge, Serializable {
 
+	private static final long serialVersionUID = -2668567174478537470L;
 	private Map<Pair<ActorRef, ActorRef>, Integer> knowledge;
 	
 	public ClientKnowledgeImpl() {

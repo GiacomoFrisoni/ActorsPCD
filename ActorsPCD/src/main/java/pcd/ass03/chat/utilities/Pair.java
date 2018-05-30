@@ -1,9 +1,11 @@
 package pcd.ass03.chat.utilities;
 
+import java.io.Serializable;
 import java.util.Objects;
 
-public class Pair<X, Y> {
+public class Pair<X, Y> implements Serializable {
 
+	private static final long serialVersionUID = -6655306989714494647L;
 	private final X first;
 	private final Y second;
 	
