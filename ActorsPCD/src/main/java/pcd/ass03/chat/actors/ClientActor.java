@@ -1,5 +1,6 @@
 package pcd.ass03.chat.actors;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,7 +32,10 @@ public class ClientActor extends AbstractActorWithStash {
 	 * Message sent from the register to the client when a new client joins the chat.</br>
 	 * With this message the client will update its internal references to others with this new one.
 	 */
-	public static final class LoggedInClientMsg {
+	public static final class LoggedInClientMsg implements Serializable {
+		
+		private static final long serialVersionUID = 4603934889644165530L;
+		
 		private final ActorRef clientRef;
 		private final String username;
 		
@@ -59,7 +63,10 @@ public class ClientActor extends AbstractActorWithStash {
 	 * Message sent from the register to a new client when it joins the chat.</br>
 	 * With this message the client will set all its internal references to clients already connected.
 	 */
-	public static final class ExistingLoggedInClientsMsg {
+	public static final class ExistingLoggedInClientsMsg implements Serializable {
+		
+		private static final long serialVersionUID = 9188409704306424081L;
+		
 		private final Map<ActorRef, String> clientRefs;
 		
 		public ExistingLoggedInClientsMsg(final Map<ActorRef, String> clientRefs) {
@@ -78,7 +85,10 @@ public class ClientActor extends AbstractActorWithStash {
 	 * Message sent from the register to the client when one of the clients just logged out.</br>
 	 * With this message the client will delete the reference to the logged out client.
 	 */
-	public static final class LoggedOutClientMsg {
+	public static final class LoggedOutClientMsg implements Serializable {
+		
+		private static final long serialVersionUID = -2885971533834333567L;
+		
 		private final ActorRef clientRef;
 		
 		public LoggedOutClientMsg(final ActorRef clientRef) {
@@ -96,7 +106,10 @@ public class ClientActor extends AbstractActorWithStash {
 	/**
 	 * Message sent to the client in order to starts its delivering.
 	 */
-	public static final class SendingRequestMsg {
+	public static final class SendingRequestMsg implements Serializable {
+		
+		private static final long serialVersionUID = -1802837382153879964L;
+		
 		private final String content;
 		
 		public SendingRequestMsg(final String content) {
@@ -115,7 +128,10 @@ public class ClientActor extends AbstractActorWithStash {
 	 * Message sent from a client to another client.</br>
 	 * <i>No username is needed since all actors knows it already internally</i>
 	 */
-	public static final class ClientMsg {
+	public static final class ClientMsg implements Serializable {
+		
+		private static final long serialVersionUID = 3264368841428605786L;
+		
 		private final ActorRef sender;
 		private final String content;
 		private final ClientKnowledgeImpl knowledge;
@@ -157,7 +173,7 @@ public class ClientActor extends AbstractActorWithStash {
 	 * @return a Props for creating client actor, which can then be further configured
 	 */
 	public static Props props(final String username) {
-		return Props.create(ClientActor.class);
+		return Props.create(ClientActor.class, username);
 	}
 	
 	/**

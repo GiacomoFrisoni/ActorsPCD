@@ -1,5 +1,6 @@
 package pcd.ass03.chat.actors;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,7 +19,8 @@ public class RegisterActor extends AbstractActor {
 	/**
 	 * Message received when a new client try to join the chat
 	 */
-	public static final class ClientLoginMsg {
+	public static final class ClientLoginMsg implements Serializable {
+		private static final long serialVersionUID = -9000555631707665945L;
 		private final ActorRef actorRef;
 		private final String username;
 		
@@ -49,7 +51,8 @@ public class RegisterActor extends AbstractActor {
 	/**
 	 * Message received when a client exit the chat
 	 */
-	public static final class ClientLogoutMsg {
+	public static final class ClientLogoutMsg implements Serializable {
+		private static final long serialVersionUID = -6642450939531203193L;
 		private final ActorRef actorRef;
 		
 		public ClientLogoutMsg(final ActorRef actorRef) {
@@ -75,6 +78,8 @@ public class RegisterActor extends AbstractActor {
 	public RegisterActor() {
 		this.actorRefs = new HashMap<>();
 		this.log = Logging.getLogger(getContext().getSystem(), this);
+		
+		System.out.println("Waiting for clients to join...");
 	}
 	
 	@Override
