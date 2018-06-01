@@ -29,7 +29,6 @@ public class ClientActor extends AbstractActorWithStash {
 	private final Map<ClientMsg, Set<Integer>> received;
 	private final Map<ClientMsg, Integer> pending;
 	private final Map<ClientMsg, Integer> delivering;
-	private final Map<ClientMsg, Integer> delivered;
 	private int currentMessageId;
 	
 	private final LoggingAdapter log;
@@ -277,7 +276,6 @@ public class ClientActor extends AbstractActorWithStash {
 		this.received = new HashMap<>();
 		this.pending = new HashMap<>();
 		this.delivering = new HashMap<>();
-		this.delivered = new HashMap<>();
 		this.currentMessageId = 0;
 		
 		this.log = Logging.getLogger(getContext().getSystem(), this);
@@ -324,7 +322,20 @@ public class ClientActor extends AbstractActorWithStash {
 					if (this.pending.containsKey(msg.getMessage())) {
 						this.clock = Math.max(this.clock, msg.getSequenceNumber());
 						this.pending.remove(msg.getMessage());
-						
+						this.delivering.put(msg.getMessage(), msg.getSequenceNumber());
+						// Check if the message is already deliverable
+						final Map<ClientMsg, Integer> union = new HashMap<>();
+						union.putAll(this.pending);
+						union.putAll(this.delivering);
+						if (union.entrySet().stream()
+								.filter(entry -> !entry.getKey().equals(msg.getMessage()))
+								.allMatch(entry -> entry.getValue() > msg.getSequenceNumber())) {
+							this.delivering.remove(msg.getMessage());
+							// Print :D
+							unstashAll();
+						} else {
+							stash();
+						}
 					}
 				})
 				
