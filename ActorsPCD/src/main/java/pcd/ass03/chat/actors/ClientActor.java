@@ -3,7 +3,9 @@ package pcd.ass03.chat.actors;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import akka.actor.AbstractActorWithStash;
 import akka.actor.ActorRef;
@@ -11,10 +13,10 @@ import akka.actor.ActorSelection;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import pcd.ass03.chat.utilities.ClientKnowledgeImpl;
 
 /**
  * This actor represents a chat client.
+ * It is based on Skeen's algorithm in order to guarantee Total Ordering.
  *
  */
 public class ClientActor extends AbstractActorWithStash {
@@ -22,8 +24,13 @@ public class ClientActor extends AbstractActorWithStash {
 	private final ActorSelection registerRef;
 	
 	private final String username;
-	private ClientKnowledgeImpl knowledge;
 	private final Map<ActorRef, String> clientsRefs;
+	private int clock;
+	private final Map<ClientMsg, Set<Integer>> received;
+	private final Map<ClientMsg, Integer> pending;
+	private final Map<ClientMsg, Integer> delivering;
+	private final Map<ClientMsg, Integer> delivered;
+	private int currentMessageId;
 	
 	private final LoggingAdapter log;
 	
@@ -104,7 +111,7 @@ public class ClientActor extends AbstractActorWithStash {
 	}
 	
 	/**
-	 * Message sent to the client in order to starts its delivering.
+	 * Message sent to the client in order to start its delivering.
 	 */
 	public static final class SendingRequestMsg implements Serializable {
 		
@@ -125,21 +132,24 @@ public class ClientActor extends AbstractActorWithStash {
 	}
 	
 	/**
-	 * Message sent from a client to another client.</br>
-	 * <i>No username is needed since all actors knows it already internally</i>
+	 * Message that a client wants to display in the chat.</br>
+	 * <i>No sender username is needed since all other clients know it already internally.</i>
 	 */
 	public static final class ClientMsg implements Serializable {
 		
 		private static final long serialVersionUID = 3264368841428605786L;
 		
 		private final ActorRef sender;
+		private final int messageId;
+		private final Set<ActorRef> recipients;
 		private final String content;
-		private final ClientKnowledgeImpl knowledge;
 		
-		public ClientMsg(final ActorRef sender, final String content, final ClientKnowledgeImpl knowledge) {
+		public ClientMsg(final ActorRef sender, final int messageId, final Set<ActorRef> recipients,
+				final String content) {
 			this.sender = sender;
+			this.messageId = messageId;
+			this.recipients = recipients;
 			this.content = content;
-			this.knowledge = knowledge;
 		}
 		
 		/**
@@ -150,17 +160,95 @@ public class ClientActor extends AbstractActorWithStash {
 		}
 		
 		/**
+		 * @return the reference to the recipients of the message
+		 */
+		public Set<ActorRef> getRecipients() {
+			return this.recipients;
+		}
+		
+		/**
 		 * @return the message content
 		 */
 		public String getContent() {
 			return this.content;
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + messageId;
+			result = prime * result + ((sender == null) ? 0 : sender.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(final Object obj) {
+			return obj instanceof ClientMsg
+					&& this.sender.equals(((ClientMsg)obj).sender)
+					&& this.messageId == ((ClientMsg)obj).messageId;
+		}
+	}
+	
+	/**
+	 * Reply message sent from a client as acknowledge for the broadcast one originally sent.
+	 * It contains the current logical clock value of the receiver.
+	 */
+	public static final class TimestampClientMsg implements Serializable {
+
+		private static final long serialVersionUID = -423120451638650777L;
+		
+		private final ClientMsg message;
+		private final int logicalTime;
+		
+		public TimestampClientMsg(final ClientMsg message, final int logicalTime) {
+			this.message = message;
+			this.logicalTime = logicalTime;
+		}
 		
 		/**
-		 * @return knowledge of the sender
+		 * @return the message
 		 */
-		public ClientKnowledgeImpl getKnowledge() {
-			return this.knowledge;
+		public ClientMsg getMessage() {
+			return this.message;
+		}
+		
+		/**
+		 * @return the client logical time associated to the message
+		 */
+		public int getLogicalTime() {
+			return this.logicalTime;
+		}
+	}
+	
+	/**
+	 * Message sent from a client in order to notify the calculated sequence number
+	 * for the specified message.
+	 */
+	public static final class SequenceNumberClientMsg implements Serializable {
+
+		private static final long serialVersionUID = -423120451638650777L;
+		
+		private final ClientMsg message;
+		private final int sequenceNumber;
+		
+		public SequenceNumberClientMsg(final ClientMsg message, final int sequenceNumber) {
+			this.message = message;
+			this.sequenceNumber = sequenceNumber;
+		}
+		
+		/**
+		 * @return the message
+		 */
+		public ClientMsg getMessage() {
+			return this.message;
+		}
+		
+		/**
+		 * @return the sequence number associated to the message
+		 */
+		public int getSequenceNumber() {
+			return this.sequenceNumber;
 		}
 	}
 
@@ -183,9 +271,14 @@ public class ClientActor extends AbstractActorWithStash {
 	 * 		the username of the client
 	 */
 	public ClientActor(final String username) {
-		this.knowledge = new ClientKnowledgeImpl();
-		this.clientsRefs = new HashMap<>();
 		this.username = username;
+		this.clientsRefs = new HashMap<>();
+		this.clock = 0;
+		this.received = new HashMap<>();
+		this.pending = new HashMap<>();
+		this.delivering = new HashMap<>();
+		this.delivered = new HashMap<>();
+		this.currentMessageId = 0;
 		
 		this.log = Logging.getLogger(getContext().getSystem(), this);
 		
@@ -197,49 +290,63 @@ public class ClientActor extends AbstractActorWithStash {
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
-				// Received a sending request in order to start delivering
+				// Received a sending request in order to start broadcast delivering
 				.match(SendingRequestMsg.class, msg -> {
-					this.clientsRefs.entrySet().forEach(clientRef -> {
-						this.knowledge.addMessage(getSelf(), clientRef.getKey());
-						clientRef.getKey().tell(new ClientMsg(getSelf(), msg.getContent(), this.knowledge), ActorRef.noSender());
-					});
+					// Broadcasts the message
+					final Set<ActorRef> currentClientsRefs = this.clientsRefs.keySet();
+					final ClientMsg broadcastMsg = new ClientMsg(getSelf(), this.currentMessageId++, currentClientsRefs, msg.getContent());
+					currentClientsRefs.forEach(clientRef -> clientRef.tell(broadcastMsg, ActorRef.noSender()));
+					this.received.put(broadcastMsg, new HashSet<>());
 				})
-				// Received a new message from another client!
+				// Received a new chat message (sent with broadcast mode) from a client
 				.match(ClientMsg.class, msg -> {
-					/*
-					 * - This client should have received all the preceding messages that the sender client sent.
-					 * - This client should have received all the messages sent by other clients that the sender client
-					 *   knows-of before sending the current message.
-					 */
-					if ((this.knowledge.getNumberOfMessagesSent(msg.getSender(), getSelf())
-							== msg.getKnowledge().getNumberOfMessagesSent(msg.getSender(), getSelf()) - 1)
-							|| (this.clientsRefs.keySet().stream()
-									.filter(ref -> ref != getSelf())
-									.allMatch(ref -> this.knowledge.getNumberOfMessagesSent(ref, getSelf())
-											>= msg.getKnowledge().getNumberOfMessagesSent(ref, getSelf())))) {
-						// Message received :D
-						unstashAll();
-					} else {
-						stash();
-					}
-					// Upon delivery keeps the greatest knowledge
-					this.knowledge.maximize(msg.getKnowledge());
+					// Updates the logical clock value
+					this.clock++;
+					// Puts the message in the pending buffer
+					this.pending.put(msg, this.clock);
+					// Reply with current logical clock value
+					msg.getSender().tell(new TimestampClientMsg(msg, this.clock), ActorRef.noSender());
 				})
+				// Received a time stamped message as acknowledge
+				.match(TimestampClientMsg.class, msg -> {
+					this.received.get(msg.getMessage()).add(msg.getLogicalTime());
+					if (this.received.get(msg.getMessage()).size() == msg.getMessage().getRecipients().size()) {
+						// Picks the max clock value received as message number
+						final int sequenceNumber = Collections.max(this.received.get(msg.getMessage()));
+						// Notifies message number
+						msg.getMessage().getRecipients().forEach(clientRef -> {
+							clientRef.tell(new SequenceNumberClientMsg(msg.getMessage(), sequenceNumber), ActorRef.noSender());
+						});
+					}
+				})
+				// Received a message number notification from a client
+				.match(SequenceNumberClientMsg.class, msg -> {
+					if (this.pending.containsKey(msg.getMessage())) {
+						this.clock = Math.max(this.clock, msg.getSequenceNumber());
+						this.pending.remove(msg.getMessage());
+						
+					}
+				})
+				
+				
+				
+				
+				
 				// I'm a new logged client, register is telling me all the existing actors
 				.match(ExistingLoggedInClientsMsg.class, existingLoggedInClientsMsg -> {
 					this.clientsRefs.clear();
 					this.clientsRefs.putAll(existingLoggedInClientsMsg.getClientsRefs());
-					this.knowledge.addNewClients(existingLoggedInClientsMsg.getClientsRefs().keySet(), this.clientsRefs.keySet());
+					//this.knowledge.addNewClients(existingLoggedInClientsMsg.getClientsRefs().keySet(), this.clientsRefs.keySet());
 				})
 				// Register is informing me that new client is joining the chat!
 				.match(LoggedInClientMsg.class, loggedInClientMsg -> {
 					this.clientsRefs.put(loggedInClientMsg.getClientRef(), loggedInClientMsg.getUsername());
-					this.knowledge.addNewClient(loggedInClientMsg.getClientRef(), this.clientsRefs.keySet());
+					//this.knowledge.addNewClient(loggedInClientMsg.getClientRef(), this.clientsRefs.keySet());
 				})
 				// Register is informing me that a client has left the chat!
 				.match(LoggedOutClientMsg.class, loggedOutClientMsg -> {
 					this.clientsRefs.remove(loggedOutClientMsg.getClientRef());
-					this.knowledge.deleteClient(loggedOutClientMsg.getClientRef());
+					//this.knowledge.removeClient(loggedOutClientMsg.getClientRef());
 				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
