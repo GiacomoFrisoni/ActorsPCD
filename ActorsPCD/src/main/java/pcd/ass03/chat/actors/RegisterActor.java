@@ -100,16 +100,16 @@ public class RegisterActor extends AbstractActor {
 		return receiveBuilder()
 				// A new client has just logged in!
 				.match(ClientLoginMsg.class, loginMsg -> {
-					// Tells the joined client actor about all existing ones
-					loginMsg.getClientRef().tell(new ClientActor.ExistingLoggedInClientsMsg(this.clientRefs), ActorRef.noSender());
-					// Watches the new client actor for dying connection or disconnect
-					getContext().watch(loginMsg.getClientRef());
 					// Tells all the actors that there is a new joined client
 					this.clientRefs.forEach((clientRef, username) -> {
-						clientRef.tell(new ClientActor.LoggedInClientMsg(loginMsg.getClientRef(), loginMsg.getUsername()), ActorRef.noSender());
+						clientRef.tell(new ClientActor.NewLoggedInClientMsg(loginMsg.getClientRef(), loginMsg.getUsername()), ActorRef.noSender());
 					});
 					// Registers the new arrival
 					this.clientRefs.put(loginMsg.getClientRef(), loginMsg.getUsername());
+					// Watches the new client actor for dying connection or disconnect
+					getContext().watch(loginMsg.getClientRef());
+					// Tells the joined client actor about all existing ones
+					loginMsg.getClientRef().tell(new ClientActor.LoggedInClientsMsg(this.clientRefs), ActorRef.noSender());
 					
 					final StringBuilder builder = new StringBuilder();
 					builder.append("[IN] New client connected: " + loginMsg.getClientRef() + "(" + loginMsg.getUsername() +")");

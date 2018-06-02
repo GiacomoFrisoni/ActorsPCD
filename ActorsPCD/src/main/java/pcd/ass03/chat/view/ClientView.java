@@ -1,4 +1,4 @@
-package pcd.ass03.chat.utilities.view;
+package pcd.ass03.chat.view;
 
 import java.io.File;
 
@@ -129,26 +129,6 @@ public class ClientView extends BorderPane {
 		//Bindings
 		this.messages.setItems(ViewDataManager.getInstance().getMessagesProperty());
 		this.clients.setItems(ViewDataManager.getInstance().getClientsProperty());
-		
-		//TODO remove this testing thread
-		new Thread(() -> {
-			int i = 0;
-			
-			while (i < 10) {
-				ViewDataManager.getInstance().addMessage("Martinocom", "Ho mandato il messaggio " + i);
-				
-				if (i % 3 == 0) {
-					ViewDataManager.getInstance().addClient("Client" + i);
-				}
-				
-				try {
-					Thread.sleep(1000);
-					i++;
-				} catch (InterruptedException exception) {
-					
-				}		
-			}
-		}).start();
 	}
 
 	private void logout() {
@@ -181,10 +161,6 @@ public class ClientView extends BorderPane {
 		if (!this.username.getText().isEmpty()) {
 			//Generate system and actor
 			final File file = new File("src/main/java/pcd/ass03/chat/client.conf");
-			System.out.println("client.conf");
-			System.out.println("Exists?" + file.exists());
-			System.out.println("Absolute path?" + file.getAbsolutePath());
-			System.out.println("Name?" + file.getName());
 			final Config config = ConfigFactory.parseFile(file);
 			this.system = ActorSystem.create("ClientSystem", config);
 			this.client = system.actorOf(ClientActor.props(this.username.getText()), "client");

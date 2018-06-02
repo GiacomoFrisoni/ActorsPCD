@@ -1,4 +1,4 @@
-package pcd.ass03.chat.utilities.view;
+package pcd.ass03.chat.view;
 
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -12,9 +12,8 @@ public class ViewDataManager {
 	private ObservableList<String> clients = FXCollections.observableArrayList();
 	
 	
-	private ViewDataManager() {
-
-	}
+	private ViewDataManager() { }
+	
 	
 	/**
 	 * This method returns the DataManager.

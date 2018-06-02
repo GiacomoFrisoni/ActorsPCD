@@ -2,7 +2,7 @@ package pcd.ass03.chat;
 
 import javafx.application.Application;
 import javafx.stage.Stage;
-import pcd.ass03.chat.utilities.view.ClientView;
+import pcd.ass03.chat.view.ClientView;
 
 public class MainClient extends Application {
 

@@ -13,6 +13,7 @@ import akka.actor.ActorSelection;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import pcd.ass03.chat.view.ViewDataManager;
 
 /**
  * This actor represents a client logged in the chat.
@@ -24,7 +25,7 @@ public class ClientActor extends AbstractActor {
 	private final ActorSelection registerRef;
 	
 	private final String username;
-	private final Map<ActorRef, String> clientsRefs;
+	private final Map<ActorRef, String> clients;
 	private int clock;
 	private final Map<ClientMsg, Set<Integer>> received;
 	private final Map<ClientMsg, Integer> pending;
@@ -39,14 +40,14 @@ public class ClientActor extends AbstractActor {
 	 * Message sent from the register to the client when a new client joins the chat.</br>
 	 * With this message the client will update its internal references.
 	 */
-	public static final class LoggedInClientMsg implements Serializable {
+	public static final class NewLoggedInClientMsg implements Serializable {
 		
 		private static final long serialVersionUID = 4603934889644165530L;
 		
 		private final ActorRef clientRef;
 		private final String username;
 		
-		public LoggedInClientMsg(final ActorRef clientRef, final String username) {
+		public NewLoggedInClientMsg(final ActorRef clientRef, final String username) {
 			this.clientRef = clientRef;
 			this.username = username;
 		}
@@ -68,15 +69,16 @@ public class ClientActor extends AbstractActor {
 
 	/**
 	 * Message sent from the register to a new client when it joins the chat.</br>
-	 * With this message the client will set all its internal references to the clients already connected.
+	 * With this message the client will set all its internal references to the clients logged
+	 * into chat service (included itself).
 	 */
-	public static final class ExistingLoggedInClientsMsg implements Serializable {
+	public static final class LoggedInClientsMsg implements Serializable {
 		
 		private static final long serialVersionUID = 9188409704306424081L;
 		
 		private final Map<ActorRef, String> clientRefs;
 		
-		public ExistingLoggedInClientsMsg(final Map<ActorRef, String> clientRefs) {
+		public LoggedInClientsMsg(final Map<ActorRef, String> clientRefs) {
 			this.clientRefs = clientRefs;
 		}
 		
@@ -264,7 +266,7 @@ public class ClientActor extends AbstractActor {
 	 */
 	public ClientActor(final String username) {
 		this.username = username;
-		this.clientsRefs = new HashMap<>();
+		this.clients = new HashMap<>();
 		this.clock = 0;
 		this.received = new HashMap<>();
 		this.pending = new HashMap<>();
@@ -285,7 +287,7 @@ public class ClientActor extends AbstractActor {
 				// Received a sending request in order to start broadcast delivering
 				.match(SendingRequestMsg.class, msg -> {
 					// Broadcasts the message
-					final Set<ActorRef> currentClientsRefs = this.clientsRefs.keySet();
+					final Set<ActorRef> currentClientsRefs = this.clients.keySet();
 					final ClientMsg broadcastMsg = new ClientMsg(getSelf(), this.currentMessageId++, msg.getContent());
 					currentClientsRefs.forEach(clientRef -> clientRef.tell(broadcastMsg, ActorRef.noSender()));
 					// Stores the recipients of the message
@@ -324,14 +326,17 @@ public class ClientActor extends AbstractActor {
 						}
 					}
 				})
-				// I'm a new logged client, register is telling me all the existing actors
-				.match(ExistingLoggedInClientsMsg.class, existingLoggedInClientsMsg -> {
-					this.clientsRefs.clear();
-					this.clientsRefs.putAll(existingLoggedInClientsMsg.getClientsRefs());
+				// I'm a new logged client, register is telling me all the client actors logged into chat
+				.match(LoggedInClientsMsg.class, loggedInClientsMsg -> {
+					this.clients.clear();
+					this.clients.putAll(loggedInClientsMsg.getClientsRefs());
+					loggedInClientsMsg.getClientsRefs().values().forEach(username -> ViewDataManager.getInstance().addClient(username));
 				})
 				// Register is informing me that a new client is joining the chat!
-				.match(LoggedInClientMsg.class, loggedInClientMsg -> {
-					this.clientsRefs.put(loggedInClientMsg.getClientRef(), loggedInClientMsg.getUsername());
+				.match(NewLoggedInClientMsg.class, loggedInClientMsg -> {
+					// Adds the logged in client into the clients list
+					this.clients.put(loggedInClientMsg.getClientRef(), loggedInClientMsg.getUsername());
+					ViewDataManager.getInstance().addClient(loggedInClientMsg.getUsername());
 				})
 				// Register is informing me that a client has left the chat!
 				.match(LoggedOutClientMsg.class, loggedOutClientMsg -> {
@@ -339,7 +344,7 @@ public class ClientActor extends AbstractActor {
 					 * Removes the logged out client from the clients list, in order to
 					 * not send a broadcast message to it in a future sending.
 					 */
-					this.clientsRefs.remove(loggedOutClientMsg.getClientRef());
+					this.clients.remove(loggedOutClientMsg.getClientRef());
 					/*
 					 * Removes, if present, all the pending messages with the logged out client as sender.
 					 * In fact, if the logged out client was a coordinator, the messages sent by him while
@@ -359,6 +364,7 @@ public class ClientActor extends AbstractActor {
 							computeSequenceNumber(entry.getKey());
 						}
 					});
+					ViewDataManager.getInstance().removeClient(this.clients.get(loggedOutClientMsg.getClientRef()));
 				})
 				.matchAny(msg -> this.log.info("Received unknown message: " + msg))
 				.build();
@@ -399,7 +405,8 @@ public class ClientActor extends AbstractActor {
 				.allMatch(entry -> entry.getValue() > messageSequenceNumber)) {
 			this.delivering.remove(message);
 			this.recipients.remove(message);
-			// Prints :D
+			// Shows the message
+			ViewDataManager.getInstance().addMessage(this.clients.get(message.getSender()), message.getContent());
 			return true;
 		}
 		return false;
