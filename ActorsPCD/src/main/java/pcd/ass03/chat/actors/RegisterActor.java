@@ -110,7 +110,7 @@ public class RegisterActor extends AbstractActor {
 					});
 					// Registers the new arrival
 					this.clientRefs.put(loginMsg.getClientRef(), loginMsg.getUsername());
-										
+					
 					final StringBuilder builder = new StringBuilder();
 					builder.append("[IN] New client connected: " + loginMsg.getClientRef() + "(" + loginMsg.getUsername() +")");
 					builder.append("\nClients connected:");
