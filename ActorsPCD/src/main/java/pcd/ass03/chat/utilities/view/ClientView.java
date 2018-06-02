@@ -8,8 +8,6 @@ import com.typesafe.config.ConfigFactory;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -26,24 +24,22 @@ import pcd.ass03.gameoflife.view.MessageUtils;
 public class ClientView extends BorderPane {
 	
 	private static final int WIDTH = 800;
-	private static final int HEIGHT = 400;
+	private static final int HEIGHT = 410;
 	private static final String TITLE = "Chat with Actors - Giacomo Frisoni & Marcin Pabich";
 	private static final String LOGIN = "LOGIN";
 	private static final String LOGOUT = "LOGOUT";
 	
 	private final Stage stage;
-	private final ObservableList<String> observableList;
 	private ActorRef client;
 	private ActorSystem system;
 	private boolean isLoggedIn = false;
 	 
 	@FXML private TextField username, message;
 	@FXML private Button login, send;
-	@FXML private ListView<String> listview;
+	@FXML private ListView<String> messages, clients;
 	
 	public ClientView(final Stage stage) {
 		this.stage = stage;
-		this.observableList = FXCollections.observableArrayList();
 		
 		loadView();
 		setDimensions();	
@@ -109,6 +105,7 @@ public class ClientView extends BorderPane {
 	}
 	
 	private void setActionListeners() {
+		//Action for login button
 		this.login.setOnMouseClicked(e -> {
 			if (isLoggedIn) {
 				logout();
@@ -117,17 +114,41 @@ public class ClientView extends BorderPane {
 			}
 		});
 		
+		//Action for send button
 		this.send.setOnMouseClicked(e -> {
 			sendMessage();
 		});
 		
+		//Action when pressing ENTER in messagebox
 		this.message.setOnKeyPressed(e -> {
 			if (e.getCode().equals(KeyCode.ENTER)) {
 				sendMessage();
 			}
 		});
 		
-		this.listview.setItems(this.observableList);
+		//Bindings
+		this.messages.setItems(ViewDataManager.getInstance().getMessagesProperty());
+		this.clients.setItems(ViewDataManager.getInstance().getClientsProperty());
+		
+		//TODO remove this testing thread
+		new Thread(() -> {
+			int i = 0;
+			
+			while (i < 10) {
+				ViewDataManager.getInstance().addMessage("Martinocom", "Ho mandato il messaggio " + i);
+				
+				if (i % 3 == 0) {
+					ViewDataManager.getInstance().addClient("Client" + i);
+				}
+				
+				try {
+					Thread.sleep(1000);
+					i++;
+				} catch (InterruptedException exception) {
+					
+				}		
+			}
+		}).start();
 	}
 
 	private void logout() {
