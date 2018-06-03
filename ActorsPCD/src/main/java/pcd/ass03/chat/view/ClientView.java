@@ -109,6 +109,7 @@ public class ClientView extends BorderPane {
 	 */
 	private void setStatusToStart() {
 		this.username.setDisable(false);
+		this.login.setDisable(false);
 		this.login.setText(LOGIN);
 		this.message.setDisable(true);
 		this.send.setDisable(true);
@@ -119,6 +120,7 @@ public class ClientView extends BorderPane {
 	 */
 	private void setStatusToLogginIn() {
 		this.username.setDisable(true);
+		this.login.setDisable(true);
 		this.login.setText(LOADING);
 		this.message.setDisable(true);
 		this.send.setDisable(true);
@@ -129,6 +131,7 @@ public class ClientView extends BorderPane {
 	 */
 	private void setStatusToActive() {
 		this.username.setDisable(true);
+		this.login.setDisable(false);
 		this.login.setText(LOGOUT);
 		this.message.setDisable(false);
 		this.send.setDisable(false);
@@ -148,7 +151,7 @@ public class ClientView extends BorderPane {
 	private void setActionListeners() {
 		//Action for login button
 		this.login.setOnMouseClicked(e -> {
-			if (ViewDataManager.getInstance().isLoggedInProperty().get()) {
+			if (!ViewDataManager.getInstance().isLoggedInProperty().get()) {
 				if (this.createActor()) {
 					this.setStatusToLogginIn();
 				}
@@ -187,6 +190,7 @@ public class ClientView extends BorderPane {
 			}		
 		});
 		
+		/*
 		//TODO remove this testing thread
 		new Thread(() -> {
 			int i = 0;
@@ -205,7 +209,7 @@ public class ClientView extends BorderPane {
 					
 				}		
 			}
-		}).start();
+		}).start();*/
 	}
 
 	

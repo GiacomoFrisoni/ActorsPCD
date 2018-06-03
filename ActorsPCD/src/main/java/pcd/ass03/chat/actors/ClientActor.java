@@ -331,6 +331,7 @@ public class ClientActor extends AbstractActor {
 					this.clients.clear();
 					this.clients.putAll(loggedInClientsMsg.getClientsRefs());
 					loggedInClientsMsg.getClientsRefs().values().forEach(username -> ViewDataManager.getInstance().addClient(username));
+					ViewDataManager.getInstance().setLogged(true);
 				})
 				// Register is informing me that a new client is joining the chat!
 				.match(NewLoggedInClientMsg.class, loggedInClientMsg -> {

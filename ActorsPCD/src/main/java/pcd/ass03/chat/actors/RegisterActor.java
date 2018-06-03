@@ -112,19 +112,21 @@ public class RegisterActor extends AbstractActor {
 					loginMsg.getClientRef().tell(new ClientActor.LoggedInClientsMsg(this.clientRefs), ActorRef.noSender());
 					
 					final StringBuilder builder = new StringBuilder();
-					builder.append("[IN] New client connected: " + loginMsg.getClientRef() + "(" + loginMsg.getUsername() +")");
+					builder.append("\n[IN] New client connected: " + loginMsg.getClientRef() + "(" + loginMsg.getUsername() +")");
 					builder.append("\nClients connected:");
 					this.clientRefs.forEach((clientRef, username) -> { builder.append("\n" + clientRef + "(" + username + ")"); });
-					builder.append("\n");
+					builder.append("\n\n");
 					System.out.println(builder.toString());
 				})
 				// A client has just logged out!
 				.match(ClientLogoutMsg.class, logoutMsg -> {
 					removeActor(logoutMsg.getClientRef());
+					System.out.println(logoutMsg.getClientRef() + " has logged out");
 				})
 				// A client died
 				.match(Terminated.class, terminatedMsg -> {
 					removeActor(terminatedMsg.getActor());
+					System.out.println(terminatedMsg.getActor() + " has died");
 				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))			
 				.build();
