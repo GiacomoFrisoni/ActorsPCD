@@ -1,4 +1,4 @@
-package pcd.ass03.chat.utilities.view;
+package pcd.ass03.chat.view;
 
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -18,9 +18,8 @@ public class ViewDataManager {
 	private BooleanProperty isLoggedIn = new SimpleBooleanProperty(false);
 	
 	
-	private ViewDataManager() {
-
-	}
+	private ViewDataManager() { }
+	
 	
 	/**
 	 * This method returns the DataManager.
