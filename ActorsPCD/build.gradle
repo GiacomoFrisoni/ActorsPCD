@@ -9,7 +9,6 @@
 // Apply the java-library plugin to add support for Java Library
 apply plugin: 'java-library'
 
-
 // In this section you declare where to find the dependencies of your project
 repositories {
     // Use jcenter for resolving your dependencies.
@@ -27,7 +26,7 @@ dependencies {
     // Use JUnit test framework
     testImplementation 'junit:junit:4.12'
 
-	// vert.x
+	// Vert.x
   	compile "io.vertx:vertx-core:3.5.1"
   	compile "io.vertx:vertx-sync:3.5.1"
   	compile "io.vertx:vertx-unit:3.5.1"

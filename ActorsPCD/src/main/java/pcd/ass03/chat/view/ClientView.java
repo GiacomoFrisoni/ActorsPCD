@@ -146,7 +146,7 @@ public class ClientView extends BorderPane {
 	private void sendMessage() {
 		if (!this.message.getText().isEmpty()) {
 			this.message.getStyleClass().remove("empty-message");
-			this.client.tell(new ClientActor.SendingRequestMsg(this.message.getText()), ActorRef.noSender());
+			this.client.tell(new ClientActor.BroadcastSendingRequestMsg(new ClientActor.ChatMsg(this.message.getText())), ActorRef.noSender());
 			this.message.clear();
 		} else {
 			this.message.getStyleClass().add("empty-message");
