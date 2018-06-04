@@ -11,6 +11,7 @@
 <?import javafx.scene.control.ListView?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.ProgressIndicator?>
 
 <fx:root xmlns:fx="http://javafx.com/fxml/1" type="BorderPane" stylesheets="@style.css">
 	<fx:define>
@@ -29,6 +30,7 @@
 			<Label HBox.hgrow="NEVER" text="Username:"></Label>
 			<TextField HBox.hgrow="ALWAYS" fx:id="username" promptText="Your username visible to others"></TextField>
 			<Button HBox.hgrow="NEVER" fx:id="login" text="LOGIN"></Button>
+			<ProgressIndicator prefWidth="20" prefHeight="20" HBox.hgrow="NEVER" fx:id="progress" visible="false" managed="false" progress="-1"></ProgressIndicator>
 		</HBox>
 	</top>
 	

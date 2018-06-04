@@ -13,6 +13,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
@@ -41,6 +42,7 @@ public class ClientView extends BorderPane {
 	@FXML private Button login, send;
 	@FXML private ListView<TextFlow> messages;
 	@FXML private ListView<String> clients;
+	@FXML private ProgressIndicator progress;
 	
 	/**
 	 * Constructor for the view
@@ -110,33 +112,45 @@ public class ClientView extends BorderPane {
 	 * Set the view to pre-login status
 	 */
 	private void setStatusToStart() {
-		this.username.setDisable(false);
-		this.login.setDisable(false);
-		this.login.setText(LOGIN);
-		this.message.setDisable(true);
-		this.send.setDisable(true);
+		Platform.runLater(() -> {
+			this.username.setDisable(false);
+			this.enableLoading(false);
+			this.login.setText(LOGIN);
+			this.message.setDisable(true);
+			this.send.setDisable(true);
+		});		
 	}
 	
 	/**
 	 * Disable all controls to check if it can log in
 	 */
 	private void setStatusToLogginIn() {
-		this.username.setDisable(true);
-		this.login.setDisable(true);
-		this.login.setText(LOADING);
-		this.message.setDisable(true);
-		this.send.setDisable(true);
+		Platform.runLater(() -> {
+			this.username.setDisable(true);
+			this.enableLoading(true);
+			this.message.setDisable(true);
+			this.send.setDisable(true);
+		});
 	}
 	
 	/**
 	 * Login was succesfull, enable the chat
 	 */
 	private void setStatusToActive() {
-		this.username.setDisable(true);
-		this.login.setDisable(false);
-		this.login.setText(LOGOUT);
-		this.message.setDisable(false);
-		this.send.setDisable(false);
+		Platform.runLater(() -> {
+			this.username.setDisable(true);
+			this.enableLoading(false);
+			this.login.setText(LOGOUT);
+			this.message.setDisable(false);
+			this.send.setDisable(false);
+		});
+	}
+	
+	private void enableLoading(final boolean enable) {
+		this.login.setDisable(enable);
+		this.login.setText(LOADING);
+		this.progress.setVisible(enable);
+		this.progress.setManaged(enable);
 	}
 	
 	/**
@@ -146,13 +160,9 @@ public class ClientView extends BorderPane {
 		this.setStatusToLogginIn();
 	}
 	
-	
-	/**
-	 * Set all the action listners and bindings for the view
-	 */
-	private void setActionListeners() {
-		//Action for login button
-		this.login.setOnMouseClicked(e -> {
+	private void checkLoginLogout() {	
+		this.enableLoading(true);
+		new Thread(() -> {
 			if (!ViewDataManager.getInstance().isLoggedInProperty().get()) {
 				if (this.createActor()) {
 					this.setStatusToLogginIn();
@@ -163,7 +173,27 @@ public class ClientView extends BorderPane {
 					this.setStatusToLogginOut();
 				}			
 			}
+		}).start();
+	}
+	
+	
+	/**
+	 * Set all the action listners and bindings for the view
+	 */
+	private void setActionListeners() {
+		
+		//Action for login button
+		this.login.setOnMouseClicked(e -> {
+			checkLoginLogout();
 		});
+		
+		//Action when pressing ENTER in username
+		this.username.setOnKeyPressed(e -> {
+			if (e.getCode().equals(KeyCode.ENTER)) {
+				checkLoginLogout();
+			}
+		});
+		
 		
 		//Action for send button
 		this.send.setOnMouseClicked(e -> {
@@ -191,27 +221,6 @@ public class ClientView extends BorderPane {
 				this.setStatusToStart();
 			}		
 		});
-		
-		/*
-		//TODO remove this testing thread
-		new Thread(() -> {
-			int i = 0;
-			
-			while (i < 10) {
-				ViewDataManager.getInstance().addMessage("Martinocom", "Ho mandato il messaggio " + i);
-				
-				if (i % 3 == 0) {
-					ViewDataManager.getInstance().addClient("Client" + i);
-				}
-				
-				try {
-					Thread.sleep(1000);
-					i++;
-				} catch (InterruptedException exception) {
-					
-				}		
-			}
-		}).start();*/
 	}
 
 	
