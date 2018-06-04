@@ -20,6 +20,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import pcd.ass03.chat.actors.ClientActor;
+import pcd.ass03.chat.messages.BroadcastSendingRequestMsg;
+import pcd.ass03.chat.messages.ChatMsg;
 import pcd.ass03.gameoflife.view.MessageUtils;
 
 public class ClientView extends BorderPane {
@@ -219,7 +221,7 @@ public class ClientView extends BorderPane {
 	private void sendMessage() {
 		if (!this.message.getText().isEmpty()) {
 			this.message.getStyleClass().remove("empty-message");
-			this.client.tell(new ClientActor.BroadcastSendingRequestMsg(new ClientActor.ChatMsg(this.message.getText())), ActorRef.noSender());
+			this.client.tell(new BroadcastSendingRequestMsg(new ChatMsg(this.message.getText())), ActorRef.noSender());
 			this.message.clear();
 		} else {
 			this.message.getStyleClass().add("empty-message");
@@ -244,11 +246,10 @@ public class ClientView extends BorderPane {
 			this.client = system.actorOf(ClientActor.props(this.username.getText()), "client");
 			
 			return true;
-			
 		} else {
 			this.username.getStyleClass().add("empty-message");
 			return false;
-		}	
+		}
 	}
 	
 	/**

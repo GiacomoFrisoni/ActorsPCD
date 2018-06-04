@@ -13,8 +13,13 @@ import akka.actor.Props;
 import akka.actor.Terminated;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import pcd.ass03.chat.actors.ClientActor.ClientMsg;
-import pcd.ass03.chat.actors.ClientActor.TimestampClientMsg;
+import pcd.ass03.chat.messages.BroadcastMsg;
+import pcd.ass03.chat.messages.ClientMsg;
+import pcd.ass03.chat.messages.LoggedInClientsMsg;
+import pcd.ass03.chat.messages.LoggedOutClientMsg;
+import pcd.ass03.chat.messages.NewLoggedInClientMsg;
+import pcd.ass03.chat.messages.SequenceNumberClientMsg;
+import pcd.ass03.chat.messages.TimestampClientMsg;
 
 /**
  * This actor represents the chat register.
@@ -114,14 +119,14 @@ public class RegisterActor extends AbstractActor {
 				// A new client has just logged in!
 				.match(ClientLoginMsg.class, loginMsg -> {
 					// Tells all the actors that there is a new joined client
-					sendToAll(new ClientActor.NewLoggedInClientMsg(loginMsg.getClientRef(), loginMsg.getUsername()));
+					sendToAll(new NewLoggedInClientMsg(loginMsg.getClientRef(), loginMsg.getUsername()));
 					
 					// Registers the new arrival
 					this.clientsRefs.put(loginMsg.getClientRef(), loginMsg.getUsername());
 					// Watches the new client actor for dying connection or disconnect
 					getContext().watch(loginMsg.getClientRef());
 					// Tells the joined client actor about all existing ones
-					loginMsg.getClientRef().tell(new ClientActor.LoggedInClientsMsg(this.clientsRefs), ActorRef.noSender());
+					loginMsg.getClientRef().tell(new LoggedInClientsMsg(this.clientsRefs), ActorRef.noSender());
 					
 					final StringBuilder builder = new StringBuilder();
 					builder.append("\n[IN] New client connected: " + loginMsg.getClientRef() + "(" + loginMsg.getUsername() +")");
@@ -151,7 +156,7 @@ public class RegisterActor extends AbstractActor {
 				.build();
 	}
 	
-	private void sendToAll(final ClientActor.BroadcastMsg broadcastMessage) {
+	private void sendToAll(final BroadcastMsg broadcastMessage) {
 		// Broadcasts the message
 		final Set<ActorRef> currentClientsRefs = this.clientsRefs.keySet();
 		final ClientMsg broadcastMsg = new ClientMsg(getSelf(), this.currentMessageId++, broadcastMessage);
@@ -173,7 +178,7 @@ public class RegisterActor extends AbstractActor {
 			final int sequenceNumber = Collections.max(this.received.get(message));
 			// Notifies message number
 			this.recipients.get(message).forEach(clientRef -> {
-				clientRef.tell(new ClientActor.SequenceNumberClientMsg(message, sequenceNumber), ActorRef.noSender());
+				clientRef.tell(new SequenceNumberClientMsg(message, sequenceNumber), ActorRef.noSender());
 			});
 		}
 	}
@@ -189,7 +194,7 @@ public class RegisterActor extends AbstractActor {
 		this.clientsRefs.remove(clientRef);
 		
 		// Tells all remaining logged clients that someone has left
-		sendToAll(new ClientActor.LoggedOutClientMsg(clientRef));
+		sendToAll(new LoggedOutClientMsg(clientRef));
 		
 		final StringBuilder builder = new StringBuilder();
 		builder.append("[OUT] New client disconnected: " + clientRef);

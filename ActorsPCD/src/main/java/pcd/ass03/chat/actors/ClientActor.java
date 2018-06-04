@@ -1,6 +1,5 @@
 package pcd.ass03.chat.actors;
 
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,6 +15,7 @@ import akka.actor.Props;
 import akka.actor.dungeon.ReceiveTimeout;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import pcd.ass03.chat.messages.*;
 import pcd.ass03.chat.view.ViewDataManager;
 import scala.concurrent.duration.Duration;
 
@@ -41,7 +41,6 @@ public class ClientActor extends AbstractActorWithStash {
 	private final Map<ClientMsg, Integer> pending;
 	private final Map<ClientMsg, Integer> delivering;
 	private final Map<ClientMsg, Set<ActorRef>> recipients;
-	
 	private int currentMessageId;
 	
 	private int myts;
@@ -56,348 +55,6 @@ public class ClientActor extends AbstractActorWithStash {
 	private Receive initializingBehavior;
 	private Receive activeBehavior;
 	
-	
-	/**
-	 * Message sent from the register to a new client when it joins the chat.</br>
-	 * With this message the client will updated its internal references to the already logged
-	 * clients in order to wait their states.
-	 */
-	public static final class LoggedInClientsMsg implements Serializable {
-		
-		private static final long serialVersionUID = 9188409704306424081L;
-		
-		private final Map<ActorRef, String> clientRefs;
-		
-		public LoggedInClientsMsg(final Map<ActorRef, String> clientRefs) {
-			this.clientRefs = clientRefs;
-		}
-		
-		/**
-		 * @return the references for the already logged clients into chat service
-		 */
-		public Map<ActorRef, String> getClientRefs() {
-			return Collections.unmodifiableMap(this.clientRefs);
-		}
-	}
-	
-	/**
-	 * Message sent from an existing client to a new one when it discovers that it has joined
-	 * the chat.</br>With this message the new client will understand if there is already someone
-	 * in critical section.
-	 */
-	public static final class ExistingClientStateMsg implements Serializable {
-		
-		private static final long serialVersionUID = 9188409704306424081L;
-		
-		private final boolean isClientInCS; 
-		
-		public ExistingClientStateMsg(final boolean isClientInCS) {
-			this.isClientInCS = isClientInCS;
-		}
-		
-		/**
-		 * @return true if the already logged client is in critical section, false otherwise
-		 */
-		public boolean isClientInCriticalSection() {
-			return this.isClientInCS;
-		}
-	}
-	
-	/**
-	 * Marker interface to identify the messages that can be sent with broadcast approach
-	 * to all chat clients.
-	 */
-	public static interface BroadcastMsg {}
-	
-	/**
-	 * Message with textual content that a client wants to display in the chat.</br>
-	 * <i>No sender username is needed since all other clients know it already internally.</br>
-	 */
-	public static class ChatMsg implements BroadcastMsg, Serializable {
-
-		private static final long serialVersionUID = -211710011896901456L;
-
-		private final String content;
-		
-		public ChatMsg(final String content) {
-			this.content = content;
-		}
-		
-		/**
-		 * @return the content of the chat message
-		 */
-		public String getContent() {
-			return this.content;
-		}
-	}
-	
-	/**
-	 * Message sent from the register to a client when a new one joins the chat.</br>
-	 * With this message the client will update its internal references.
-	 */
-	public static class NewLoggedInClientMsg implements BroadcastMsg, Serializable {
-
-		private static final long serialVersionUID = -211710011896901456L;
-
-		private final ActorRef clientRef;
-		private final String username;
-		
-		public NewLoggedInClientMsg(final ActorRef clientRef, final String username) {
-			this.clientRef = clientRef;
-			this.username = username;
-		}
-
-		/**
-		 * @return the reference to the client that wants to join the chat
-		 */
-		public ActorRef getClientRef() {
-			return this.clientRef;
-		}
-
-		/**
-		 * @return the username of the client actor that wants to join the chat
-		 */
-		public String getUsername() {
-			return this.username;
-		}	
-	}
-	
-	/**
-	 * Message sent from the register to the client when one of the clients just logged out.</br>
-	 * With this message the client will delete its internal references to the logged out client.
-	 */
-	public static class LoggedOutClientMsg implements BroadcastMsg, Serializable {
-
-		private static final long serialVersionUID = -211710011896901456L;
-
-		private final ActorRef clientRef;
-		
-		public LoggedOutClientMsg(final ActorRef clientRef) {
-			this.clientRef = clientRef;
-		}
-
-		/**
-		 * @return the reference to the client that has logged out from the chat
-		 */
-		public ActorRef getClientRef() {
-			return this.clientRef;
-		}
-	}
-	
-	/**
-	 * Message sent by a client to notify other clients about its entrance into a critical section.
-	 */
-	public static final class GotMutualExclusionMsg implements BroadcastMsg, Serializable {
-		
-		private static final long serialVersionUID = -423120451638650777L;
-		
-		private final ActorRef sender;
-		
-		public GotMutualExclusionMsg(final ActorRef sender) {
-			this.sender = sender;
-		}
-		
-		/**
-		 * @return the reference to the sender that has obtained mutual exclusion
-		 */
-		public ActorRef getSender() {
-			return this.sender;
-		}
-	}
-	
-	/**
-	 * Message sent to the clients when the actor that has mutual exclusion lost it.
-	 */
-	public static final class LostMutualExclusionMsg implements BroadcastMsg, Serializable {
-		
-		private static final long serialVersionUID = -423120451638650777L;
-		
-	}
-	
-	/**
-	 * Message sent to the client in order to start its broadcast delivering.
-	 */
-	public static final class BroadcastSendingRequestMsg implements Serializable {
-		
-		private static final long serialVersionUID = -1802837382153879964L;
-		
-		private final BroadcastMsg message;
-		
-		public BroadcastSendingRequestMsg(final BroadcastMsg message) {
-			this.message = message;
-		}
-		
-		/**
-		 * @return the message to deliver
-		 */
-		public BroadcastMsg getMessage() {
-			return this.message;
-		}
-	}
-	
-	/**
-	 * Message received from a client with broadcast approach in order to achieve total order
-	 * delivering.</br>The id of a message is composed by the sender reference and an internal
-	 * number determined by it.</i>
-	 */
-	public static final class ClientMsg implements Serializable {
-		
-		private static final long serialVersionUID = 3264368841428605786L;
-		
-		private final ActorRef sender;
-		private final int messageId;
-		private final BroadcastMsg message;
-		
-		public ClientMsg(final ActorRef sender, final int messageId, final BroadcastMsg message) {
-			this.sender = sender;
-			this.messageId = messageId;
-			this.message = message;
-		}
-		
-		/**
-		 * @return the reference to the sender of the message
-		 */
-		public ActorRef getSender() {
-			return this.sender;
-		}
-		
-		/**
-		 * @return the message to deliver
-		 */
-		public BroadcastMsg getMessage() {
-			return this.message;
-		}
-
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + messageId;
-			result = prime * result + ((sender == null) ? 0 : sender.hashCode());
-			return result;
-		}
-
-		@Override
-		public boolean equals(final Object obj) {
-			return obj instanceof ClientMsg
-					&& this.sender.equals(((ClientMsg)obj).sender)
-					&& this.messageId == ((ClientMsg)obj).messageId;
-		}
-	}
-	
-	/**
-	 * Message sent from a client as acknowledge for the broadcast one originally sent.</br>
-	 * It contains the current logical clock value of the receiver.
-	 */
-	public static final class TimestampClientMsg implements Serializable {
-
-		private static final long serialVersionUID = -423120451638650777L;
-		
-		private final ClientMsg message;
-		private final int logicalTime;
-		
-		public TimestampClientMsg(final ClientMsg message, final int logicalTime) {
-			this.message = message;
-			this.logicalTime = logicalTime;
-		}
-		
-		/**
-		 * @return the message to which it refers
-		 */
-		public ClientMsg getMessage() {
-			return this.message;
-		}
-		
-		/**
-		 * @return the client logical time associated to the message
-		 */
-		public int getLogicalTime() {
-			return this.logicalTime;
-		}
-	}
-	
-	/**
-	 * Message sent from a client in order to notify the calculated sequence number
-	 * for the specified message.
-	 */
-	public static final class SequenceNumberClientMsg implements Serializable {
-
-		private static final long serialVersionUID = -423120451638650777L;
-		
-		private final ClientMsg message;
-		private final int sequenceNumber;
-		
-		public SequenceNumberClientMsg(final ClientMsg message, final int sequenceNumber) {
-			this.message = message;
-			this.sequenceNumber = sequenceNumber;
-		}
-		
-		/**
-		 * @return the message to which it refers
-		 */
-		public ClientMsg getMessage() {
-			return this.message;
-		}
-		
-		/**
-		 * @return the sequence number associated to the message
-		 */
-		public int getSequenceNumber() {
-			return this.sequenceNumber;
-		}
-	}
-	
-	/**
-	 * Message sent from a client to the other ones in order to request them the possibility
-	 * to enter a critical section. 
-	 */
-	public static final class MutualExclusionRequestMsg implements Serializable {
-
-		private static final long serialVersionUID = -423120451638650777L;
-		
-		private final ActorRef sender;
-		private final int timestamp;
-		
-		public MutualExclusionRequestMsg(final ActorRef sender, final int timestamp) {
-			this.sender = sender;
-			this.timestamp = timestamp;
-		}
-		
-		/**
-		 * @return the reference to the sender of the request message
-		 */
-		public ActorRef getSender() {
-			return this.sender;
-		}
-		
-		/**
-		 * @return the logical time associated to the client that has made the request
-		 */
-		public int getTimestamp() {
-			return this.timestamp;
-		}
-	}
-	
-	/**
-	 * Message sent from a client in order to give consent to the entry in critical section
-	 * of another client.
-	 */
-	public static final class MutualExclusionConsentMsg implements Serializable {
-		
-		private static final long serialVersionUID = -423120451638650777L;
-		
-	}
-	
-	/**
-	 * Message sent by a client to confirm his awareness regarding the entry into critical
-	 * section of another client.
-	 */
-	public static final class GotMutualExclusionAckMsg implements Serializable {
-		
-		private static final long serialVersionUID = -423120451638650777L;
-		
-	}
-
 	
 	/**
 	 * Creates Props for a client actor.
@@ -457,13 +114,13 @@ public class ClientActor extends AbstractActorWithStash {
 									if (clientMsg.isClientInCriticalSection()) {
 										this.isSomeoneInCriticalSection = true;
 									}
-									checkCompleteLogin();
+									checkLoginCompletion();
 								})
 								.match(ClientMsg.class, clientMsg -> stash())
 								.matchAny(otherMsg -> this.log.info("Received unknown message: " + otherMsg))
 								.build());
 					} else {
-						checkCompleteLogin();
+						checkLoginCompletion();
 					}
 				})
 				.match(ExistingClientStateMsg.class, msg -> stash())
@@ -535,8 +192,9 @@ public class ClientActor extends AbstractActorWithStash {
 				// Received a message acknowledge about my entering in critical section
 				.match(GotMutualExclusionAckMsg.class, msg -> {
 					this.nCsEnteringAcks++;
-					enterIntoCriticalSection();
+					checkCriticalSectionEntrance();
 				})
+				// Received a timeout expired notification for a too long mutual exclusion possession
 				.match(ReceiveTimeout.class, msg -> {
 					sendToAll(new LostMutualExclusionMsg());
 				})
@@ -549,6 +207,9 @@ public class ClientActor extends AbstractActorWithStash {
 		return this.initializingBehavior;
 	}
 	
+	/*
+	 * Sends the specified message with broadcast delivering.
+	 */
 	private void sendToAll(final BroadcastMsg broadcastMessage) {
 		/*
 		 * I consider the sending of a new chat message only if I know that there is not a client
@@ -566,7 +227,11 @@ public class ClientActor extends AbstractActorWithStash {
 		}
 	}
 	
-	private void checkCompleteLogin() {
+	/*
+	 * Checks if all the existing clients have notified me with their state.
+	 * If so, I go in active mode.
+	 */
+	private void checkLoginCompletion() {
 		if (this.nArrivedExistingClientsStates == this.clients.size() - 1) {
 			unstashAll();
 			getContext().become(this.activeBehavior);
@@ -574,15 +239,22 @@ public class ClientActor extends AbstractActorWithStash {
 		}
 	}
 	
-	private void enterIntoCriticalSection() {
+	/*
+	 * Checks if all the clients know that I am ready to go into critical section.
+	 * If so, I get mutual exclusion and the timeout starts.
+	 */
+	private void checkCriticalSectionEntrance() {
 		if (this.nCsEnteringAcks == this.csConsentsRefsExpected.size()) {
 			this.isInCriticalSection = true;
 			getContext().setReceiveTimeout(Duration.create(CS_TIMEOUT, TimeUnit.MILLISECONDS));
 		}
 	}
 	
+	/*
+	 * Handles the mutual exclusion release for the specified client.
+	 * If I was the one to have it, I reset my variables and notify who eventually is in pending state.
+	 */
 	private void exitFromCriticalSection(final ActorRef sender) {
-		// I consider requesting messages to exit from mutual exclusion only if I am in critical section
 		if (this.isInCriticalSection && sender.equals(getSelf())) {
 			// Turns the timeout off
 			getContext().setReceiveTimeout(Duration.Undefined());
@@ -637,6 +309,7 @@ public class ClientActor extends AbstractActorWithStash {
 			// A client wants to deliver a textual chat message
 			if (broadcastMsg instanceof ChatMsg) {
 				final ChatMsg chatMsg = (ChatMsg)broadcastMsg;
+				// If the chat message is equal to the special command for entering into critical section
 				if (chatMsg.getContent().equals(ENTER_CS_MESSAGE)) {
 					/*
 					 * I consider requesting messages to enter into mutual exclusion only if I have not already started
@@ -655,10 +328,12 @@ public class ClientActor extends AbstractActorWithStash {
 						});
 						this.nCsEnteringConsents = 0;
 					}
-				} else if (chatMsg.getContent().equals(EXIT_CS_MESSAGE)) {
+				}
+				// If the chat message is equal to the special command for exiting by critical section
+				else if (chatMsg.getContent().equals(EXIT_CS_MESSAGE)) {
 					exitFromCriticalSection(message.getSender());
 				} else {
-					// Shows the message
+					// Shows the normal message
 					ViewDataManager.getInstance().addMessage(this.clients.get(message.getSender()), chatMsg.getContent());
 				}
 			// Register is informing me that a new client is joining the chat!
@@ -679,7 +354,7 @@ public class ClientActor extends AbstractActorWithStash {
 				 * not send a broadcast message to it in a future sending.
 				 */
 				this.clients.remove(logoutMsg.getClientRef());
-				checkCompleteLogin();
+				checkLoginCompletion();
 				/*
 				 * Removes, if present, all the pending messages with the logged out client as sender.
 				 * In fact, if the logged out client was a coordinator, the messages sent by it while
@@ -699,10 +374,14 @@ public class ClientActor extends AbstractActorWithStash {
 						computeSequenceNumber(entry.getKey());
 					}
 				});
-				
+				/*
+				 * Removes the expected clients for the critical section entering acknowledges.
+				 */
 				this.csConsentsRefsExpected.remove(logoutMsg.getClientRef());
-				enterIntoCriticalSection();
-				
+				checkCriticalSectionEntrance();
+				/*
+				 * Deletes the logged out client from the view.
+				 */
 				ViewDataManager.getInstance().removeClient(this.clients.get(logoutMsg.getClientRef()));
 			}
 			// Received a notification about the entering in critical section of a client
@@ -712,7 +391,9 @@ public class ClientActor extends AbstractActorWithStash {
 				if (!csEnteringMsg.getSender().equals(getSelf())) {
 					csEnteringMsg.getSender().tell(new GotMutualExclusionAckMsg(), ActorRef.noSender());
 				}
-			} else if (broadcastMsg instanceof LostMutualExclusionMsg) {
+			}
+			// Received a notification about the exiting from the critical section performed by a client
+			else if (broadcastMsg instanceof LostMutualExclusionMsg) {
 				exitFromCriticalSection(message.getSender());
 			}
 			return true;
