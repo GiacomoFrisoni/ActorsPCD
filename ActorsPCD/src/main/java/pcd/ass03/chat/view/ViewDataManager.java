@@ -10,6 +10,29 @@ import javafx.scene.text.TextFlow;
 
 public class ViewDataManager {
 	
+	//Static types of message
+	private final static String LOGIN_MESSAGE = "has joined to the chat!";
+	private final static String LOGOUT_MESSAGE = "has left the chat!";
+	private final static String MUTEX_LOCK_MESSAGE = "got the mutex!";
+	private final static String MUTEX_UNLOCK_MESSAGE = "released the mutex!";
+	private final static String SEPARATOR = "----";
+	
+	//Enum to check what type of message I'm going to show
+	public enum MessageType {
+		LOGIN(LOGIN_MESSAGE), LOGOUT(LOGOUT_MESSAGE), MUTEX_LOCK(MUTEX_LOCK_MESSAGE), MUTEX_UNLOCK(MUTEX_UNLOCK_MESSAGE);
+			
+		private final String message;
+		
+		private MessageType(final String message) {
+			this.message = message;
+		}
+		
+		public String getMessage() {
+			return this.message;
+		}
+	}
+
+	
 	private static ViewDataManager singleton;
 
 	private ObservableList<TextFlow> messages = FXCollections.observableArrayList();
@@ -70,14 +93,30 @@ public class ViewDataManager {
 	 * @param message
 	 * 		Content of the message
 	 */
-	public void addMessage(final String username, final String message) {
+	public void addMessage(final String username, final String message) {	
+		final Text usernameText = createText(username + ": ", true, false);
+		final Text messageText = createText(message, false, false);
+		final TextFlow flow = createTextFlow(usernameText, messageText);
+		
 		Platform.runLater(() -> {
-			final TextFlow flow = new TextFlow();
-			final Text usernameText = new Text(username + ": ");
-			usernameText.setStyle("-fx-font-weight: bold");
-			final Text messageText = new Text(message);
-			
-			flow.getChildren().addAll(usernameText, messageText);
+			this.messages.add(flow);
+		});	
+	}
+	
+	/**
+	 * Add an info message
+	 * @param username
+	 * 		Username that is doing the action
+	 * @param messageType
+	 * 		Type of the message: login, logout, mutex_lock, mutext_unlock. 
+	 */
+	public void addInfoMessage(final String username, final MessageType messageType) {
+		final Text separator = createText(SEPARATOR, false, true);
+		final Text usernameText = createText(username, true, true);
+		final Text infoText = createText(messageType.getMessage() + " ", false, true);
+		final TextFlow flow = createTextFlow(separator, usernameText, infoText, separator);
+		
+		Platform.runLater(() -> {
 			this.messages.add(flow);
 		});	
 	}
@@ -113,5 +152,36 @@ public class ViewDataManager {
 		Platform.runLater(() -> {
 			this.isLoggedIn.setValue(value);
 		});	
+	}
+	
+	
+	
+	/*
+	 * Create a flow of stylized texts
+	 * @param texts
+	 * 		Text to put toghether
+	 * @return
+	 * 		A TextFlow object composed of all texts
+	 */
+	private TextFlow createTextFlow(final Text... texts) {
+		return new TextFlow(texts);
+	}
+	
+	/*
+	 * Create a Text from a string, stylizing it properly
+	 * @param str
+	 * 		String to convert to Text
+	 * @param isBold
+	 * 		TRUE: string will be also bold, else normal (or only ITALIC)
+	 * @param isItalic
+	 * 		TRUE: string will be also italic, else normal (or only BOLD)
+	 * @return
+	 * 		Text object
+	 */
+	private Text createText(final String str, final boolean isBold, final boolean isItalic) {
+		final Text text = new Text(str);
+		if (isBold) text.setStyle("-fx-font-weight: bold");
+		if (isItalic) text.setStyle("-fx-font-style: italic;");
+		return text;
 	}
 }
