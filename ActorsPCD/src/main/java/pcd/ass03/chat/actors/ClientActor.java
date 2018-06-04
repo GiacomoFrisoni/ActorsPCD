@@ -12,7 +12,7 @@ import akka.actor.AbstractActorWithStash;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.Props;
-import akka.actor.dungeon.ReceiveTimeout;
+import akka.actor.ReceiveTimeout;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import pcd.ass03.chat.messages.*;
@@ -187,11 +187,7 @@ public class ClientActor extends AbstractActorWithStash {
 				.match(MutualExclusionConsentMsg.class, msg -> {
 					this.nCsEnteringConsents++;
 					System.out.println("N° consensi: " + this.nCsEnteringConsents + " su " + this.csConsentsRefsExpected.size());
-					// If all the consents have been received, I can finally enter the critical section
-					if (this.nCsEnteringConsents == this.csConsentsRefsExpected.size()) {
-						this.nCsEnteringAcks = 0;
-						sendToAll(new GotMutualExclusionMsg(getSelf()));
-					}
+					checkCriticalSectionConsenses();
 				})
 				// Received a message acknowledge about my entering in critical section
 				.match(GotMutualExclusionAckMsg.class, msg -> {
@@ -200,9 +196,12 @@ public class ClientActor extends AbstractActorWithStash {
 				})
 				// Received a timeout expired notification for a too long mutual exclusion possession
 				.match(ReceiveTimeout.class, msg -> {
+					// Turns the timeout off
+					getContext().setReceiveTimeout(Duration.Undefined());
+					// Tells to all the lost of the mutual exclusion from the current client
 					sendToAll(new LostMutualExclusionMsg());
 				})
-				.matchAny(msg -> this.log.info("Received unknown message: " + msg))
+				.matchAny(msg -> this.log.info("SHISH Received unknown message: " + msg))
 				.build();
 	}
 	
@@ -240,6 +239,18 @@ public class ClientActor extends AbstractActorWithStash {
 			unstashAll();
 			getContext().become(this.activeBehavior);
 			ViewDataManager.getInstance().setLogged(true);
+		}
+	}
+	
+	/*
+	 * Checks if all the mutual exclusion entering consents have been received.
+	 * If so, the current client tells the other ones about is effective entrance.
+	 */
+	private void checkCriticalSectionConsenses() {
+		// If all the consents have been received, I can finally enter the critical section
+		if (this.nCsEnteringConsents == this.csConsentsRefsExpected.size()) {
+			this.nCsEnteringAcks = 0;
+			sendToAll(new GotMutualExclusionMsg(getSelf()));
 		}
 	}
 	
@@ -330,10 +341,15 @@ public class ClientActor extends AbstractActorWithStash {
 						 */
 						this.myts = this.clock;
 						this.csConsentsRefsExpected = this.clients.keySet().stream().filter(ref -> !ref.equals(getSelf())).collect(Collectors.toSet());
-						this.csConsentsRefsExpected.forEach(ref -> {
-							ref.tell(new MutualExclusionRequestMsg(getSelf(), this.myts), ActorRef.noSender());
-						});
-						this.nCsEnteringConsents = 0;
+						if (this.csConsentsRefsExpected.size() > 0) {
+							this.csConsentsRefsExpected.forEach(ref -> {
+								ref.tell(new MutualExclusionRequestMsg(getSelf(), this.myts), ActorRef.noSender());
+							});
+							this.nCsEnteringConsents = 0;
+						} else {
+							sendToAll(new GotMutualExclusionMsg(getSelf()));
+							checkCriticalSectionEntrance();
+						}
 					}
 				}
 				// If the chat message is equal to the special command for exiting by critical section

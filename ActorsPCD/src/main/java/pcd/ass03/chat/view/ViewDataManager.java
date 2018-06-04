@@ -114,7 +114,7 @@ public class ViewDataManager {
 		final Text separator = createText(SEPARATOR, false, true);
 		final Text usernameText = createText(username, true, true);
 		final Text infoText = createText(messageType.getMessage() + " ", false, true);
-		final TextFlow flow = createTextFlow(separator, usernameText, infoText, separator);
+		final TextFlow flow = createTextFlow(separator, usernameText, infoText);
 		
 		Platform.runLater(() -> {
 			this.messages.add(flow);
