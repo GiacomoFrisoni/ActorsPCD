@@ -1,8 +1,9 @@
-package pcd.ass03.chat.messages;
+package pcd.ass03.chat.messages.client;
 
 import java.io.Serializable;
 
 import akka.actor.ActorRef;
+import pcd.ass03.chat.messages.BroadcastMsg;
 
 /**
  * Message sent from the register to the client when one of the clients just logged out.</br>

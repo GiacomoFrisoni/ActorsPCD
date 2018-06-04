@@ -1,6 +1,8 @@
-package pcd.ass03.chat.messages;
+package pcd.ass03.chat.messages.client;
 
 import java.io.Serializable;
+
+import pcd.ass03.chat.messages.BroadcastMsg;
 
 /**
  * Message with textual content that a client wants to display in the chat.</br>

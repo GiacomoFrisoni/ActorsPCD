@@ -21,8 +21,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import pcd.ass03.chat.actors.ClientActor;
-import pcd.ass03.chat.messages.BroadcastSendingRequestMsg;
-import pcd.ass03.chat.messages.ChatMsg;
+import pcd.ass03.chat.messages.client.BroadcastSendingRequestMsg;
+import pcd.ass03.chat.messages.client.ChatMsg;
 import pcd.ass03.gameoflife.view.MessageUtils;
 
 public class ClientView extends BorderPane {

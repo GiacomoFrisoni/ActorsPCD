@@ -16,7 +16,10 @@ import akka.actor.dungeon.ReceiveTimeout;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import pcd.ass03.chat.messages.*;
+import pcd.ass03.chat.messages.client.*;
+import pcd.ass03.chat.messages.register.ClientLoginMsg;
 import pcd.ass03.chat.view.ViewDataManager;
+import pcd.ass03.chat.view.ViewDataManager.MessageType;
 import scala.concurrent.duration.Duration;
 
 /**
@@ -96,7 +99,7 @@ public class ClientActor extends AbstractActorWithStash {
 		
 		// Starts and connects the client to the remote server
         this.registerRef = getContext().actorSelection("akka.tcp://ChatSystem@127.0.0.1:4552/user/register");
-        this.registerRef.tell(new RegisterActor.ClientLoginMsg(getSelf(), this.username), ActorRef.noSender());
+        this.registerRef.tell(new ClientLoginMsg(getSelf(), this.username), ActorRef.noSender());
         
         this.initializingBehavior = receiveBuilder()
         		// I'm a new logged client, register is telling me the clients that are already logged into the chat
@@ -183,6 +186,7 @@ public class ClientActor extends AbstractActorWithStash {
 				// Received a mutual exclusion entering consent from a client
 				.match(MutualExclusionConsentMsg.class, msg -> {
 					this.nCsEnteringConsents++;
+					System.out.println("N° consensi: " + this.nCsEnteringConsents + " su " + this.csConsentsRefsExpected.size());
 					// If all the consents have been received, I can finally enter the critical section
 					if (this.nCsEnteringConsents == this.csConsentsRefsExpected.size()) {
 						this.nCsEnteringAcks = 0;
@@ -245,6 +249,7 @@ public class ClientActor extends AbstractActorWithStash {
 	 */
 	private void checkCriticalSectionEntrance() {
 		if (this.nCsEnteringAcks == this.csConsentsRefsExpected.size()) {
+			System.out.println("Entroooo");
 			this.isInCriticalSection = true;
 			getContext().setReceiveTimeout(Duration.create(CS_TIMEOUT, TimeUnit.MILLISECONDS));
 		}
@@ -267,6 +272,7 @@ public class ClientActor extends AbstractActorWithStash {
 			this.pendingCsClientsRefs.clear();
 		}
 		this.isSomeoneInCriticalSection = false;
+		ViewDataManager.getInstance().addInfoMessage(this.clients.get(sender), MessageType.MUTEX_UNLOCK);
 	}
 	
 	/*
@@ -316,6 +322,7 @@ public class ClientActor extends AbstractActorWithStash {
 					 * critical section entrance procedure.
 					 */
 					if (this.myts == Integer.MAX_VALUE) {
+						System.out.println("Invio le richieste per entrare in CS");
 						/*
 						 * To request mutual exclusion, the client sends a time-stamped message to all other clients
 						 * and then waits for consents. As long as it has not obtained the consent of everyone, not being
@@ -343,6 +350,7 @@ public class ClientActor extends AbstractActorWithStash {
 				this.clients.put(loginMsg.getClientRef(), loginMsg.getUsername());
 				// Shows the new client in the list of connected actors
 				ViewDataManager.getInstance().addClient(loginMsg.getUsername());
+				ViewDataManager.getInstance().addInfoMessage(loginMsg.getUsername(), MessageType.LOGIN);
 				// Replies to the new logged client with its reference and its critical section state
 				loginMsg.getClientRef().tell(new ExistingClientStateMsg(this.isInCriticalSection), ActorRef.noSender());
 			}
@@ -383,6 +391,7 @@ public class ClientActor extends AbstractActorWithStash {
 				 * Deletes the logged out client from the view.
 				 */
 				ViewDataManager.getInstance().removeClient(this.clients.get(logoutMsg.getClientRef()));
+				ViewDataManager.getInstance().addInfoMessage(this.clients.get(logoutMsg.getClientRef()), MessageType.LOGOUT);
 			}
 			// Received a notification about the entering in critical section of a client
 			else if (broadcastMsg instanceof GotMutualExclusionMsg) {
@@ -391,6 +400,7 @@ public class ClientActor extends AbstractActorWithStash {
 				if (!csEnteringMsg.getSender().equals(getSelf())) {
 					csEnteringMsg.getSender().tell(new GotMutualExclusionAckMsg(), ActorRef.noSender());
 				}
+				ViewDataManager.getInstance().addInfoMessage(this.clients.get(csEnteringMsg.getSender()), MessageType.MUTEX_LOCK);
 			}
 			// Received a notification about the exiting from the critical section performed by a client
 			else if (broadcastMsg instanceof LostMutualExclusionMsg) {

@@ -1,6 +1,5 @@
 package pcd.ass03.chat.actors;
 
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -15,11 +14,13 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import pcd.ass03.chat.messages.BroadcastMsg;
 import pcd.ass03.chat.messages.ClientMsg;
-import pcd.ass03.chat.messages.LoggedInClientsMsg;
-import pcd.ass03.chat.messages.LoggedOutClientMsg;
-import pcd.ass03.chat.messages.NewLoggedInClientMsg;
 import pcd.ass03.chat.messages.SequenceNumberClientMsg;
 import pcd.ass03.chat.messages.TimestampClientMsg;
+import pcd.ass03.chat.messages.client.LoggedInClientsMsg;
+import pcd.ass03.chat.messages.client.LoggedOutClientMsg;
+import pcd.ass03.chat.messages.client.NewLoggedInClientMsg;
+import pcd.ass03.chat.messages.register.ClientLoginMsg;
+import pcd.ass03.chat.messages.register.ClientLogoutMsg;
 
 /**
  * This actor represents the chat register.
@@ -36,58 +37,6 @@ public class RegisterActor extends AbstractActor {
 	private final Map<ClientMsg, Set<ActorRef>> recipients;
 	
 	private final LoggingAdapter log;
-	
-	
-	/**
-	 * Message received when a new client tries to join the chat.
-	 */
-	public static final class ClientLoginMsg implements Serializable {
-		
-		private static final long serialVersionUID = -9000555631707665945L;
-		
-		private final ActorRef clientRef;
-		private final String username;
-		
-		public ClientLoginMsg (final ActorRef clientRef, final String username) {
-			this.clientRef = clientRef;
-			this.username = username;
-		}
-
-		/**
-		 * @return the reference to the client actor that wants to join the chat
-		 */
-		public ActorRef getClientRef() {
-			return clientRef;
-		}
-
-		/**
-		 * @return the username of the client actor that wants to join the chat
-		 */
-		public String getUsername() {
-			return username;
-		}	
-	}
-
-	/**
-	 * Message received when a client exits the chat.
-	 */
-	public static final class ClientLogoutMsg implements Serializable {
-		
-		private static final long serialVersionUID = -6642450939531203193L;
-		
-		private final ActorRef clientRef;
-		
-		public ClientLogoutMsg(final ActorRef clientRef) {
-			this.clientRef = clientRef;
-		}
-		
-		/**
-		 * @return the reference to the client actor that has left the chat
-		 */
-		public ActorRef getClientRef() {
-			return this.clientRef;
-		}
-	}
 	
 	
 	/**

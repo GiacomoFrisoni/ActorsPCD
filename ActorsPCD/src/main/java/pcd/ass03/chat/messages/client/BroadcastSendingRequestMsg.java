@@ -1,6 +1,8 @@
-package pcd.ass03.chat.messages;
+package pcd.ass03.chat.messages.client;
 
 import java.io.Serializable;
+
+import pcd.ass03.chat.messages.BroadcastMsg;
 
 
 /**
