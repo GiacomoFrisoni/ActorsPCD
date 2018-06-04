@@ -124,10 +124,10 @@ public class RegisterActor extends AbstractActor {
 					loginMsg.getClientRef().tell(new ClientActor.LoggedInClientsMsg(this.clientsRefs), ActorRef.noSender());
 					
 					final StringBuilder builder = new StringBuilder();
-					builder.append("[IN] New client connected: " + loginMsg.getClientRef() + "(" + loginMsg.getUsername() +")");
+					builder.append("\n[IN] New client connected: " + loginMsg.getClientRef() + "(" + loginMsg.getUsername() +")");
 					builder.append("\nClients connected:");
 					this.clientsRefs.forEach((clientRef, username) -> { builder.append("\n" + clientRef + "(" + username + ")"); });
-					builder.append("\n");
+					builder.append("\n\n");
 					System.out.println(builder.toString());
 				})
 				// Received a time stamped message as acknowledge
@@ -140,10 +140,12 @@ public class RegisterActor extends AbstractActor {
 				// A client has just logged out!
 				.match(ClientLogoutMsg.class, logoutMsg -> {
 					removeClient(logoutMsg.getClientRef());
+					System.out.println(logoutMsg.getClientRef() + " has logged out");
 				})
 				// A remote client died (gracefully termination or lost association due to network failure or crashes)  
 				.match(Terminated.class, terminatedMsg -> {
 					removeClient(terminatedMsg.getActor());
+					System.out.println(terminatedMsg.getActor() + " has died");
 				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))			
 				.build();

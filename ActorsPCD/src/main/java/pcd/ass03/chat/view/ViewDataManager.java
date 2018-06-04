@@ -1,15 +1,21 @@
 package pcd.ass03.chat.view;
 
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 
 public class ViewDataManager {
 	
 	private static ViewDataManager singleton;
 
-	private ObservableList<String> messages = FXCollections.observableArrayList();
+	private ObservableList<TextFlow> messages = FXCollections.observableArrayList();
 	private ObservableList<String> clients = FXCollections.observableArrayList();
+	
+	private BooleanProperty isLoggedIn = new SimpleBooleanProperty(false);
 	
 	
 	private ViewDataManager() { }
@@ -34,7 +40,7 @@ public class ViewDataManager {
 	 * @return
 	 * 		Property representing the list of all messages
 	 */
-	public ObservableList<String> getMessagesProperty() {
+	public ObservableList<TextFlow> getMessagesProperty() {
 		return this.messages;
 	}
 	
@@ -48,6 +54,16 @@ public class ViewDataManager {
 	}
 	
 	/**
+	 * Tell if user is already logged in
+	 * @return
+	 * 		Property representing if user is already logged in
+	 */
+	public BooleanProperty isLoggedInProperty () {
+		return this.isLoggedIn;
+	}
+	
+	
+	/**
 	 * Add a message
 	 * @param username
 	 * 		Username of the client that's sending the message
@@ -56,7 +72,13 @@ public class ViewDataManager {
 	 */
 	public void addMessage(final String username, final String message) {
 		Platform.runLater(() -> {
-			this.messages.add(username + ": " + message);
+			final TextFlow flow = new TextFlow();
+			final Text usernameText = new Text(username + ": ");
+			usernameText.setStyle("-fx-font-weight: bold");
+			final Text messageText = new Text(message);
+			
+			flow.getChildren().addAll(usernameText, messageText);
+			this.messages.add(flow);
 		});	
 	}
 	
@@ -79,6 +101,17 @@ public class ViewDataManager {
 	public void removeClient(final String client) {
 		Platform.runLater(() -> {
 			this.clients.remove(client);
+		});	
+	}
+	
+	/**
+	 * Set the client as logged in or out
+	 * @param value
+	 * 		TRUE: logged in, FALSE: logged out
+	 */
+	public void setLogged(final boolean value) {
+		Platform.runLater(() -> {
+			this.isLoggedIn.setValue(value);
 		});	
 	}
 }

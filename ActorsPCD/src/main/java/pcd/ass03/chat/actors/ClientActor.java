@@ -444,7 +444,6 @@ public class ClientActor extends AbstractActorWithStash {
         this.initializingBehavior = receiveBuilder()
         		// I'm a new logged client, register is telling me the clients that are already logged into the chat
 				.match(LoggedInClientsMsg.class, msg -> {
-					System.out.println("HO RICEVUTO L'ELENCO :D");
 					this.clients.clear();
 					this.clients.putAll(msg.getClientRefs());
 					this.clients.values().forEach(clientUsername -> ViewDataManager.getInstance().addClient(clientUsername));
@@ -568,11 +567,10 @@ public class ClientActor extends AbstractActorWithStash {
 	}
 	
 	private void checkCompleteLogin() {
-		System.out.println(this.nArrivedExistingClientsStates + " | " + this.clients.size());
 		if (this.nArrivedExistingClientsStates == this.clients.size() - 1) {
 			unstashAll();
 			getContext().become(this.activeBehavior);
-			// TODO: VIEW DATA MANAGER ENABLE SEND
+			ViewDataManager.getInstance().setLogged(true);
 		}
 	}
 	
@@ -728,7 +726,7 @@ public class ClientActor extends AbstractActorWithStash {
 		if (this.isInCriticalSection) {
 			sendToAll(new LostMutualExclusionMsg());
 		}
-		// TODO: Use ViewDataManager to enable login
+		ViewDataManager.getInstance().setLogged(false);
 	}
 
 }

@@ -17,6 +17,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import pcd.ass03.chat.actors.ClientActor;
 import pcd.ass03.gameoflife.view.MessageUtils;
@@ -27,30 +28,42 @@ public class ClientView extends BorderPane {
 	private static final int HEIGHT = 410;
 	private static final String TITLE = "Chat with Actors - Giacomo Frisoni & Marcin Pabich";
 	private static final String LOGIN = "LOGIN";
+	private static final String LOADING = "LOADING";
 	private static final String LOGOUT = "LOGOUT";
 	
 	private final Stage stage;
 	private ActorRef client;
 	private ActorSystem system;
-	private boolean isLoggedIn = false;
 	 
 	@FXML private TextField username, message;
 	@FXML private Button login, send;
-	@FXML private ListView<String> messages, clients;
+	@FXML private ListView<TextFlow> messages;
+	@FXML private ListView<String> clients;
 	
+	/**
+	 * Constructor for the view
+	 * @param stage
+	 * 		primaryStage passed from the start main method
+	 */
 	public ClientView(final Stage stage) {
 		this.stage = stage;
 		
-		loadView();
-		setDimensions();	
-		setActionListeners();
-		setOnLoginStatus();
+		this.loadView();
+		this.setDimensions();	
+		this.setActionListeners();
+		this.setStatusToStart();
 	}
 	
+	/**
+	 * Method that shows the view on the screen
+	 */
 	public void show() {
 		this.stage.show();
 	}
 	
+	/**
+	 * Load the .fxml file associated with view
+	 */
 	private void loadView() {
 		final FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("ClientView.fxml"));
 		fxmlLoader.setRoot(this);
@@ -79,6 +92,9 @@ public class ClientView extends BorderPane {
         }
 	}
 	
+	/**
+	 * Set the correct dimension of the view
+	 */
 	private void setDimensions() {
 		this.setWidth(WIDTH);
     	this.setHeight(HEIGHT);
@@ -88,29 +104,62 @@ public class ClientView extends BorderPane {
     	this.stage.setMinHeight(HEIGHT);
 	}
 	
-	private void setOnLoginStatus() {
+	/**
+	 * Set the view to pre-login status
+	 */
+	private void setStatusToStart() {
 		this.username.setDisable(false);
+		this.login.setDisable(false);
 		this.login.setText(LOGIN);
 		this.message.setDisable(true);
 		this.send.setDisable(true);
-		isLoggedIn = false;
 	}
 	
-	private void setOnActiveStatus() {
+	/**
+	 * Disable all controls to check if it can log in
+	 */
+	private void setStatusToLogginIn() {
 		this.username.setDisable(true);
+		this.login.setDisable(true);
+		this.login.setText(LOADING);
+		this.message.setDisable(true);
+		this.send.setDisable(true);
+	}
+	
+	/**
+	 * Login was succesfull, enable the chat
+	 */
+	private void setStatusToActive() {
+		this.username.setDisable(true);
+		this.login.setDisable(false);
 		this.login.setText(LOGOUT);
 		this.message.setDisable(false);
 		this.send.setDisable(false);
-		isLoggedIn = true;
 	}
 	
+	/**
+	 * Disable all controls to check if it can log out
+	 */
+	private void setStatusToLogginOut() {
+		this.setStatusToLogginIn();
+	}
+	
+	
+	/**
+	 * Set all the action listners and bindings for the view
+	 */
 	private void setActionListeners() {
 		//Action for login button
 		this.login.setOnMouseClicked(e -> {
-			if (isLoggedIn) {
-				logout();
+			if (!ViewDataManager.getInstance().isLoggedInProperty().get()) {
+				if (this.createActor()) {
+					this.setStatusToLogginIn();
+				}
+				
 			} else {
-				login();
+				if (this.destroyActor()) {
+					this.setStatusToLogginOut();
+				}			
 			}
 		});
 		
@@ -129,20 +178,44 @@ public class ClientView extends BorderPane {
 		//Bindings
 		this.messages.setItems(ViewDataManager.getInstance().getMessagesProperty());
 		this.clients.setItems(ViewDataManager.getInstance().getClientsProperty());
+		
+		//Listener on binding
+		ViewDataManager.getInstance().isLoggedInProperty().addListener(listener -> {
+			if (ViewDataManager.getInstance().isLoggedInProperty().get()) {
+				//User is logged in, activate chat
+				this.setStatusToActive();
+			} else {
+				//User is not logged in, activate login
+				this.setStatusToStart();
+			}		
+		});
+		
+		/*
+		//TODO remove this testing thread
+		new Thread(() -> {
+			int i = 0;
+			
+			while (i < 10) {
+				ViewDataManager.getInstance().addMessage("Martinocom", "Ho mandato il messaggio " + i);
+				
+				if (i % 3 == 0) {
+					ViewDataManager.getInstance().addClient("Client" + i);
+				}
+				
+				try {
+					Thread.sleep(1000);
+					i++;
+				} catch (InterruptedException exception) {
+					
+				}		
+			}
+		}).start();*/
 	}
 
-	private void logout() {
-		if (destroyActor()) {
-			setOnLoginStatus();
-		}	
-	}
 	
-	private void login() {
-		if (createActor()) {
-			setOnActiveStatus();
-		}
-	}
-	
+	/**
+	 * Method that send a message to client
+	 */
 	private void sendMessage() {
 		if (!this.message.getText().isEmpty()) {
 			this.message.getStyleClass().remove("empty-message");
@@ -153,6 +226,11 @@ public class ClientView extends BorderPane {
 		}
 	}
 	
+	/**
+	 * Permit to create a new client actor
+	 * @return
+	 * 		TRUE if creation was successful
+	 */
 	private boolean createActor() {
 		//Toggle the error class
 		this.username.getStyleClass().remove("empty-message");
@@ -173,6 +251,11 @@ public class ClientView extends BorderPane {
 		}	
 	}
 	
+	/**
+	 * Permit to destroy the client actor
+	 * @return
+	 * 		TRUE if destroy was successful
+	 */
 	private boolean destroyActor() {
 		if (this.system != null) {
 			if (this.client != null) {
