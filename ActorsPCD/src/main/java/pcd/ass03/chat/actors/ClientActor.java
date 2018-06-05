@@ -1,8 +1,10 @@
 package pcd.ass03.chat.actors;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -15,9 +17,24 @@ import akka.actor.Props;
 import akka.actor.ReceiveTimeout;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import pcd.ass03.chat.messages.*;
-import pcd.ass03.chat.messages.client.*;
+import pcd.ass03.chat.messages.BroadcastMsg;
+import pcd.ass03.chat.messages.ClientMsg;
+import pcd.ass03.chat.messages.SequenceNumberClientMsg;
+import pcd.ass03.chat.messages.TimestampClientMsg;
+import pcd.ass03.chat.messages.client.BroadcastSendingRequestMsg;
+import pcd.ass03.chat.messages.client.ChatMsg;
+import pcd.ass03.chat.messages.client.ExistingClientStateMsg;
+import pcd.ass03.chat.messages.client.GotMutualExclusionAckMsg;
+import pcd.ass03.chat.messages.client.GotMutualExclusionMsg;
+import pcd.ass03.chat.messages.client.LoggedInClientsMsg;
+import pcd.ass03.chat.messages.client.LoggedOutClientMsg;
+import pcd.ass03.chat.messages.client.LostMutualExclusionAfterLogoutMsg;
+import pcd.ass03.chat.messages.client.LostMutualExclusionMsg;
+import pcd.ass03.chat.messages.client.MutualExclusionConsentMsg;
+import pcd.ass03.chat.messages.client.MutualExclusionRequestMsg;
+import pcd.ass03.chat.messages.client.NewLoggedInClientMsg;
 import pcd.ass03.chat.messages.register.ClientLoginMsg;
+import pcd.ass03.chat.messages.register.LoggedOutWithMutualExclusionMsg;
 import pcd.ass03.chat.view.ViewDataManager;
 import pcd.ass03.chat.view.ViewDataManager.MessageType;
 import scala.concurrent.duration.Duration;
@@ -40,7 +57,7 @@ public class ClientActor extends AbstractActorWithStash {
 	private int nArrivedExistingClientsStates;
 	private final Map<ActorRef, String> clients;
 	private int clock;
-	private final Map<ClientMsg, Set<Integer>> received;
+	private final Map<ClientMsg, List<Integer>> received;
 	private final Map<ClientMsg, Integer> pending;
 	private final Map<ClientMsg, Integer> delivering;
 	private final Map<ClientMsg, Set<ActorRef>> recipients;
@@ -113,13 +130,25 @@ public class ClientActor extends AbstractActorWithStash {
 						getContext().become(receiveBuilder()
 								// An already logged client is telling me its state info
 								.match(ExistingClientStateMsg.class, clientMsg -> {
-									this.nArrivedExistingClientsStates++;
-									if (clientMsg.isClientInCriticalSection()) {
-										this.isSomeoneInCriticalSection = true;
+									//Check if I expected this client ack
+									if (this.clients.containsKey(clientMsg.getSender())) {
+										this.nArrivedExistingClientsStates++;
+										if (clientMsg.isClientInCriticalSection()) {
+											this.isSomeoneInCriticalSection = true;
+										}
+										checkLoginCompletion();
 									}
-									checkLoginCompletion();
 								})
-								.match(ClientMsg.class, clientMsg -> stash())
+								.match(ClientMsg.class, clientMsg -> {
+									if (clientMsg.getMessage() instanceof LoggedOutClientMsg) {
+										final LoggedOutClientMsg logoutMsg = (LoggedOutClientMsg)clientMsg.getMessage();
+										ViewDataManager.getInstance().removeClient(this.clients.get(logoutMsg.getClientRef()));
+										this.clients.remove(logoutMsg.getClientRef());
+										checkLoginCompletion();
+									} else {
+										stash();
+									}
+								})
 								.matchAny(otherMsg -> this.log.info("Received unknown message: " + otherMsg))
 								.build());
 					} else {
@@ -219,13 +248,13 @@ public class ClientActor extends AbstractActorWithStash {
 		 */
 		if (!this.isSomeoneInCriticalSection || (this.isSomeoneInCriticalSection && this.isInCriticalSection)) {
 			// Broadcasts the message
-			final Set<ActorRef> currentClientsRefs = this.clients.keySet();
+			final Set<ActorRef> currentClientsRefs = new HashSet<>(this.clients.keySet());
 			final ClientMsg broadcastMsg = new ClientMsg(getSelf(), this.currentMessageId++, broadcastMessage);
 			currentClientsRefs.forEach(clientRef -> clientRef.tell(broadcastMsg, ActorRef.noSender()));
 			// Stores the recipients of the message
 			this.recipients.put(broadcastMsg, currentClientsRefs);
 			// Prepares the set in which to put the logical times of the recipients
-			this.received.put(broadcastMsg, new HashSet<>());
+			this.received.put(broadcastMsg, new ArrayList<>());
 		}
 	}
 	
@@ -258,9 +287,11 @@ public class ClientActor extends AbstractActorWithStash {
 	 * If so, I get mutual exclusion and the timeout starts.
 	 */
 	private void checkCriticalSectionEntrance() {
-		if (this.nCsEnteringAcks == this.csConsentsRefsExpected.size()) {
-			this.isInCriticalSection = true;
-			getContext().setReceiveTimeout(Duration.create(CS_TIMEOUT, TimeUnit.MILLISECONDS));
+		if (this.myts != Integer.MAX_VALUE) {
+			if (this.nCsEnteringAcks == this.csConsentsRefsExpected.size()) {
+				this.isInCriticalSection = true;
+				getContext().setReceiveTimeout(Duration.create(CS_TIMEOUT, TimeUnit.MILLISECONDS));
+			}
 		}
 	}
 	
@@ -288,7 +319,7 @@ public class ClientActor extends AbstractActorWithStash {
 	 * Checks if all the time-stamped acknowledges have been received for the specified broadcast message.
 	 * If so, calculates the sequence number for the message and tells it to the message recipients.
 	 */
-	private void computeSequenceNumber(final ClientMsg message) {
+	private void computeSequenceNumber(final ClientMsg message) {	
 		// If all acknowledge messages have been received
 		if (this.received.get(message).size() == this.recipients.get(message).size()) {
 			// Picks the max clock value received as message number
@@ -330,22 +361,24 @@ public class ClientActor extends AbstractActorWithStash {
 					 * I consider requesting messages to enter into mutual exclusion only if I have not already started
 					 * critical section entrance procedure.
 					 */
-					if (this.myts == Integer.MAX_VALUE) {
-						/*
-						 * To request mutual exclusion, the client sends a time-stamped message to all other clients
-						 * and then waits for consents. As long as it has not obtained the consent of everyone, not being
-						 * officially still in mutual exclusion, it can continue both to send and to receive messages.
-						 */
-						this.myts = this.clock;
-						this.csConsentsRefsExpected = this.clients.keySet().stream().filter(ref -> !ref.equals(getSelf())).collect(Collectors.toSet());
-						if (this.csConsentsRefsExpected.size() > 0) {
-							this.csConsentsRefsExpected.forEach(ref -> {
-								ref.tell(new MutualExclusionRequestMsg(getSelf(), this.myts), ActorRef.noSender());
-							});
-							this.nCsEnteringConsents = 0;
-						} else {
-							sendToAll(new GotMutualExclusionMsg(getSelf()));
-							checkCriticalSectionEntrance();
+					if (message.getSender().equals(getSelf())) {
+						if (this.myts == Integer.MAX_VALUE) {
+							/*
+							 * To request mutual exclusion, the client sends a time-stamped message to all other clients
+							 * and then waits for consents. As long as it has not obtained the consent of everyone, not being
+							 * officially still in mutual exclusion, it can continue both to send and to receive messages.
+							 */
+							this.myts = this.clock;
+							this.csConsentsRefsExpected = this.clients.keySet().stream().filter(ref -> !ref.equals(getSelf())).collect(Collectors.toSet());
+							if (this.csConsentsRefsExpected.size() > 0) {
+								this.csConsentsRefsExpected.forEach(ref -> {
+									ref.tell(new MutualExclusionRequestMsg(getSelf(), this.myts), ActorRef.noSender());
+								});
+								this.nCsEnteringConsents = 0;
+							} else {
+								sendToAll(new GotMutualExclusionMsg(getSelf()));
+								checkCriticalSectionEntrance();
+							}
 						}
 					}
 				}
@@ -365,17 +398,22 @@ public class ClientActor extends AbstractActorWithStash {
 				ViewDataManager.getInstance().addClient(loginMsg.getUsername());
 				ViewDataManager.getInstance().addInfoMessage(loginMsg.getUsername(), MessageType.LOGIN);
 				// Replies to the new logged client with its reference and its critical section state
-				loginMsg.getClientRef().tell(new ExistingClientStateMsg(this.isInCriticalSection), ActorRef.noSender());
+				loginMsg.getClientRef().tell(new ExistingClientStateMsg(getSelf(), this.isInCriticalSection), ActorRef.noSender());
 			}
 			// Register is informing me that a client has left the chat!
 			else if (broadcastMsg instanceof LoggedOutClientMsg) {
 				final LoggedOutClientMsg logoutMsg = (LoggedOutClientMsg)broadcastMsg;
 				/*
+				 * Deletes the logged out client from the view.
+				 */
+				ViewDataManager.getInstance().removeClient(this.clients.get(logoutMsg.getClientRef()));
+				ViewDataManager.getInstance().addInfoMessage(this.clients.get(logoutMsg.getClientRef()), MessageType.LOGOUT);
+				
+				/*
 				 * Removes the logged out client from the clients list, in order to
 				 * not send a broadcast message to it in a future sending.
 				 */
 				this.clients.remove(logoutMsg.getClientRef());
-				checkLoginCompletion();
 				/*
 				 * Removes, if present, all the pending messages with the logged out client as sender.
 				 * In fact, if the logged out client was a coordinator, the messages sent by it while
@@ -400,11 +438,6 @@ public class ClientActor extends AbstractActorWithStash {
 				 */
 				this.csConsentsRefsExpected.remove(logoutMsg.getClientRef());
 				checkCriticalSectionEntrance();
-				/*
-				 * Deletes the logged out client from the view.
-				 */
-				ViewDataManager.getInstance().removeClient(this.clients.get(logoutMsg.getClientRef()));
-				ViewDataManager.getInstance().addInfoMessage(this.clients.get(logoutMsg.getClientRef()), MessageType.LOGOUT);
 			}
 			// Received a notification about the entering in critical section of a client
 			else if (broadcastMsg instanceof GotMutualExclusionMsg) {
@@ -419,6 +452,13 @@ public class ClientActor extends AbstractActorWithStash {
 			else if (broadcastMsg instanceof LostMutualExclusionMsg) {
 				exitFromCriticalSection(message.getSender());
 			}
+			// Received a notification about a client that logged out but previously was in mux section
+			else if (broadcastMsg instanceof LostMutualExclusionAfterLogoutMsg) {
+				this.isSomeoneInCriticalSection = false;
+				final LostMutualExclusionAfterLogoutMsg lostMuxAfterLogout = (LostMutualExclusionAfterLogoutMsg) broadcastMsg;
+				ViewDataManager.getInstance().addInfoMessage(lostMuxAfterLogout.getClientUsername(), MessageType.MUTEX_UNLOCK);
+			}
+			
 			return true;
 		}
 		return false;
@@ -428,7 +468,8 @@ public class ClientActor extends AbstractActorWithStash {
 	public void postStop() {
 		// If the logged out client has mutual exclusion, releases it.
 		if (this.isInCriticalSection) {
-			sendToAll(new LostMutualExclusionMsg());
+			exitFromCriticalSection(getSelf());
+			this.registerRef.tell(new LoggedOutWithMutualExclusionMsg(this.username), ActorRef.noSender());
 		}
 		ViewDataManager.getInstance().setLogged(false);
 	}

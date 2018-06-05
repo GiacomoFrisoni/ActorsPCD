@@ -1,8 +1,10 @@
 package pcd.ass03.chat.actors;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -18,9 +20,11 @@ import pcd.ass03.chat.messages.SequenceNumberClientMsg;
 import pcd.ass03.chat.messages.TimestampClientMsg;
 import pcd.ass03.chat.messages.client.LoggedInClientsMsg;
 import pcd.ass03.chat.messages.client.LoggedOutClientMsg;
+import pcd.ass03.chat.messages.client.LostMutualExclusionAfterLogoutMsg;
 import pcd.ass03.chat.messages.client.NewLoggedInClientMsg;
 import pcd.ass03.chat.messages.register.ClientLoginMsg;
 import pcd.ass03.chat.messages.register.ClientLogoutMsg;
+import pcd.ass03.chat.messages.register.LoggedOutWithMutualExclusionMsg;
 
 /**
  * This actor represents the chat register.
@@ -33,7 +37,7 @@ public class RegisterActor extends AbstractActor {
 
 	private int currentMessageId;
 
-	private final Map<ClientMsg, Set<Integer>> received;
+	private final Map<ClientMsg, List<Integer>> received;
 	private final Map<ClientMsg, Set<ActorRef>> recipients;
 	
 	private final LoggingAdapter log;
@@ -99,21 +103,30 @@ public class RegisterActor extends AbstractActor {
 				// A remote client died (gracefully termination or lost association due to network failure or crashes)  
 				.match(Terminated.class, terminatedMsg -> {
 					removeClient(terminatedMsg.getActor());
+					this.recipients.entrySet().forEach(entry -> {
+						if (entry.getValue().contains(terminatedMsg.getActor())) {
+							entry.getValue().remove(terminatedMsg.getActor());
+							computeSequenceNumber(entry.getKey());
+						}
+					});
 					System.out.println(terminatedMsg.getActor() + " has died");
 				})
-				.matchAny(msg -> log.info("Received unknown message: " + msg))			
+				.match(LoggedOutWithMutualExclusionMsg.class, logoutCsMsg -> {
+					sendToAll(new LostMutualExclusionAfterLogoutMsg(logoutCsMsg.getClientUsername()));
+				})
+				.matchAny(msg -> log.info("Received unknown message: " + msg))
 				.build();
 	}
 	
 	private void sendToAll(final BroadcastMsg broadcastMessage) {
 		// Broadcasts the message
-		final Set<ActorRef> currentClientsRefs = this.clientsRefs.keySet();
+		final Set<ActorRef> currentClientsRefs = new HashSet<>(this.clientsRefs.keySet());
 		final ClientMsg broadcastMsg = new ClientMsg(getSelf(), this.currentMessageId++, broadcastMessage);
 		currentClientsRefs.forEach(clientRef -> clientRef.tell(broadcastMsg, ActorRef.noSender()));
 		// Stores the recipients of the message
 		this.recipients.put(broadcastMsg, currentClientsRefs);
 		// Prepares the set in which to put the logical times of the recipients
-		this.received.put(broadcastMsg, new HashSet<>());
+		this.received.put(broadcastMsg, new ArrayList<>());
 	}
 	
 	/*

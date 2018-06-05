@@ -112,11 +112,10 @@ public class ClientView extends BorderPane {
 	 * Set the view to pre-login status
 	 */
 	private void setStatusToStart() {
+		this.enableLoading(false, LOGIN);
 		Platform.runLater(() -> {
 			ViewDataManager.getInstance().clear();
 			this.username.setDisable(false);
-			this.enableLoading(false);
-			this.login.setText(LOGIN);
 			this.message.setDisable(true);
 			this.send.setDisable(true);
 			this.username.requestFocus();
@@ -127,7 +126,7 @@ public class ClientView extends BorderPane {
 	 * Disable all controls to check if it can log in
 	 */
 	private void setStatusToLogginIn() {
-		this.enableLoading(true);
+		this.enableLoading(true, LOADING);
 		Platform.runLater(() -> {
 			this.username.setDisable(true);
 			this.message.setDisable(true);
@@ -139,20 +138,19 @@ public class ClientView extends BorderPane {
 	 * Login was succesfull, enable the chat
 	 */
 	private void setStatusToActive() {
-		this.enableLoading(false);	
+		this.enableLoading(false, LOGOUT);	
 		Platform.runLater(() -> {
 			this.username.setDisable(true);
-			this.login.setText(LOGOUT);
 			this.message.setDisable(false);
 			this.send.setDisable(false);
 			this.message.requestFocus();
 		});
 	}
 	
-	private void enableLoading(final boolean enable) {
+	private void enableLoading(final boolean enable, final String buttonMessage) {
 		Platform.runLater(() -> {
 			this.login.setDisable(enable);
-			this.login.setText(LOADING);
+			this.login.setText(buttonMessage);
 			this.progress.setVisible(enable);
 			this.progress.setManaged(enable);
 		});
@@ -166,7 +164,7 @@ public class ClientView extends BorderPane {
 	}
 	
 	private void checkLoginLogout() {	
-		this.enableLoading(true);
+		this.enableLoading(true, LOADING);
 		new Thread(() -> {
 			if (!ViewDataManager.getInstance().isLoggedInProperty().get()) {
 				if (this.createActor()) {
