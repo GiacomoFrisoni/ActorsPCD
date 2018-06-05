@@ -13,8 +13,8 @@ public class ViewDataManager {
 	//Static types of message
 	private final static String LOGIN_MESSAGE = "has joined to the chat!";
 	private final static String LOGOUT_MESSAGE = "has left the chat!";
-	private final static String MUTEX_LOCK_MESSAGE = "got the mutex!";
-	private final static String MUTEX_UNLOCK_MESSAGE = "released the mutex!";
+	private final static String MUTEX_LOCK_MESSAGE = "has got the mutex!";
+	private final static String MUTEX_UNLOCK_MESSAGE = "has released the mutex!";
 	private final static String SEPARATOR = "----";
 	
 	//Enum to check what type of message I'm going to show
@@ -111,8 +111,8 @@ public class ViewDataManager {
 	 * 		Type of the message: login, logout, mutex_lock, mutext_unlock. 
 	 */
 	public void addInfoMessage(final String username, final MessageType messageType) {
-		final Text separator = createText(SEPARATOR, false, true);
-		final Text usernameText = createText(username, true, true);
+		final Text separator = createText(SEPARATOR + " ", false, true);
+		final Text usernameText = createText(username + " ", true, true);
 		final Text infoText = createText(messageType.getMessage() + " ", false, true);
 		final TextFlow flow = createTextFlow(separator, usernameText, infoText);
 		

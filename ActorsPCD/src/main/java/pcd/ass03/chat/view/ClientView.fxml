@@ -41,7 +41,7 @@
 			</padding>
 			
 			<Label VBox.vgrow="NEVER">Chat</Label>
-			<ListView VBox.vgrow="ALWAYS" fx:id="messages" mouseTransparent="true" focusTraversable="false"></ListView>
+			<ListView VBox.vgrow="ALWAYS" fx:id="messages"></ListView>
 		</VBox>
 	</center>
 	

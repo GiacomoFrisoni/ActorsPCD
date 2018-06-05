@@ -186,7 +186,6 @@ public class ClientActor extends AbstractActorWithStash {
 				// Received a mutual exclusion entering consent from a client
 				.match(MutualExclusionConsentMsg.class, msg -> {
 					this.nCsEnteringConsents++;
-					System.out.println("N° consensi: " + this.nCsEnteringConsents + " su " + this.csConsentsRefsExpected.size());
 					checkCriticalSectionConsenses();
 				})
 				// Received a message acknowledge about my entering in critical section
@@ -201,7 +200,7 @@ public class ClientActor extends AbstractActorWithStash {
 					// Tells to all the lost of the mutual exclusion from the current client
 					sendToAll(new LostMutualExclusionMsg());
 				})
-				.matchAny(msg -> this.log.info("SHISH Received unknown message: " + msg))
+				.matchAny(msg -> this.log.info("Received unknown message: " + msg))
 				.build();
 	}
 	
@@ -260,7 +259,6 @@ public class ClientActor extends AbstractActorWithStash {
 	 */
 	private void checkCriticalSectionEntrance() {
 		if (this.nCsEnteringAcks == this.csConsentsRefsExpected.size()) {
-			System.out.println("Entroooo");
 			this.isInCriticalSection = true;
 			getContext().setReceiveTimeout(Duration.create(CS_TIMEOUT, TimeUnit.MILLISECONDS));
 		}
@@ -333,7 +331,6 @@ public class ClientActor extends AbstractActorWithStash {
 					 * critical section entrance procedure.
 					 */
 					if (this.myts == Integer.MAX_VALUE) {
-						System.out.println("Invio le richieste per entrare in CS");
 						/*
 						 * To request mutual exclusion, the client sends a time-stamped message to all other clients
 						 * and then waits for consents. As long as it has not obtained the consent of everyone, not being
