@@ -40,9 +40,7 @@ public class ViewDataManager {
 	
 	private BooleanProperty isLoggedIn = new SimpleBooleanProperty(false);
 	
-	
 	private ViewDataManager() { }
-	
 	
 	/**
 	 * This method returns the DataManager.
@@ -94,12 +92,9 @@ public class ViewDataManager {
 	 * 		Content of the message
 	 */
 	public void addMessage(final String username, final String message) {	
-		final Text usernameText = createText(username + ": ", true, false);
-		final Text messageText = createText(message, false, false);
-		final TextFlow flow = createTextFlow(usernameText, messageText);
-		
 		Platform.runLater(() -> {
-			this.messages.add(flow);
+			this.messages.add(createTextFlow(createText(username + ": ", true, false),
+											 createText(message, false, false)));
 		});	
 	}
 	
@@ -111,13 +106,11 @@ public class ViewDataManager {
 	 * 		Type of the message: login, logout, mutex_lock, mutext_unlock. 
 	 */
 	public void addInfoMessage(final String username, final MessageType messageType) {
-		final Text separator = createText(SEPARATOR + " ", false, true);
-		final Text usernameText = createText(username + " ", true, true);
-		final Text infoText = createText(messageType.getMessage() + " ", false, true);
-		final TextFlow flow = createTextFlow(separator, usernameText, infoText);
-		
 		Platform.runLater(() -> {
-			this.messages.add(flow);
+			this.messages.add(createTextFlow(createText(SEPARATOR + " ", false, true),
+											 createText(username + " ", true, true),
+											 createText(messageType.getMessage() + " ", false, true),
+											 createText(" " + SEPARATOR, false, true)));
 		});	
 	}
 	
@@ -152,6 +145,16 @@ public class ViewDataManager {
 		Platform.runLater(() -> {
 			this.isLoggedIn.setValue(value);
 		});	
+	}
+	
+	/**
+	 * Clear all the data
+	 */
+	public void clear() {
+		Platform.runLater(() -> {
+			this.messages.clear();
+			this.clients.clear();
+		});
 	}
 	
 	

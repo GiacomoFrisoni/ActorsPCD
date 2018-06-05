@@ -1,9 +1,7 @@
 package pcd.ass03.chat.view;
 
-import java.io.File;
-
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
+import java.util.ArrayList;
+import java.util.List;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -37,6 +35,8 @@ public class ClientView extends BorderPane {
 	private final Stage stage;
 	private ActorRef client;
 	private ActorSystem system;
+	private List<String> myMessages = new ArrayList<>();
+	private int lastMessageCount = 0;
 	 
 	@FXML private TextField username, message;
 	@FXML private Button login, send;
@@ -49,9 +49,9 @@ public class ClientView extends BorderPane {
 	 * @param stage
 	 * 		primaryStage passed from the start main method
 	 */
-	public ClientView(final Stage stage) {
+	public ClientView(final Stage stage, final ActorSystem system) {
 		this.stage = stage;
-		
+		this.system = system;
 		this.loadView();
 		this.setDimensions();	
 		this.setActionListeners();
@@ -113,11 +113,13 @@ public class ClientView extends BorderPane {
 	 */
 	private void setStatusToStart() {
 		Platform.runLater(() -> {
+			ViewDataManager.getInstance().clear();
 			this.username.setDisable(false);
 			this.enableLoading(false);
 			this.login.setText(LOGIN);
 			this.message.setDisable(true);
 			this.send.setDisable(true);
+			this.username.requestFocus();
 		});		
 	}
 	
@@ -125,9 +127,9 @@ public class ClientView extends BorderPane {
 	 * Disable all controls to check if it can log in
 	 */
 	private void setStatusToLogginIn() {
+		this.enableLoading(true);
 		Platform.runLater(() -> {
 			this.username.setDisable(true);
-			this.enableLoading(true);
 			this.message.setDisable(true);
 			this.send.setDisable(true);
 		});
@@ -137,20 +139,23 @@ public class ClientView extends BorderPane {
 	 * Login was succesfull, enable the chat
 	 */
 	private void setStatusToActive() {
+		this.enableLoading(false);	
 		Platform.runLater(() -> {
 			this.username.setDisable(true);
-			this.enableLoading(false);
 			this.login.setText(LOGOUT);
 			this.message.setDisable(false);
 			this.send.setDisable(false);
+			this.message.requestFocus();
 		});
 	}
 	
 	private void enableLoading(final boolean enable) {
-		this.login.setDisable(enable);
-		this.login.setText(LOADING);
-		this.progress.setVisible(enable);
-		this.progress.setManaged(enable);
+		Platform.runLater(() -> {
+			this.login.setDisable(enable);
+			this.login.setText(LOADING);
+			this.progress.setVisible(enable);
+			this.progress.setManaged(enable);
+		});
 	}
 	
 	/**
@@ -169,9 +174,8 @@ public class ClientView extends BorderPane {
 				}
 				
 			} else {
-				if (this.destroyActor()) {
-					this.setStatusToLogginOut();
-				}			
+				this.destroyActor();
+				this.setStatusToLogginOut();				
 			}
 		}).start();
 	}
@@ -200,11 +204,37 @@ public class ClientView extends BorderPane {
 			sendMessage();
 		});
 		
-		//Action when pressing ENTER in messagebox
+		//Action when pressing ENTER or UP in messagebox
 		this.message.setOnKeyPressed(e -> {
 			if (e.getCode().equals(KeyCode.ENTER)) {
 				sendMessage();
 			}
+					
+			if (e.getCode().equals(KeyCode.UP)) {
+				if (!this.myMessages.isEmpty()) {
+					if (this.lastMessageCount < myMessages.size() && this.lastMessageCount >= 0) {
+						this.message.setText(myMessages.get(this.lastMessageCount--));
+					}
+				}
+				
+				if (this.lastMessageCount < 0) {
+					this.lastMessageCount = 0;
+				}
+			}
+			
+			if (e.getCode().equals(KeyCode.DOWN)) {
+				if (!this.myMessages.isEmpty()) {
+					if (this.lastMessageCount < myMessages.size() && this.lastMessageCount >= 0) {
+						this.message.setText(myMessages.get(this.lastMessageCount++));
+					}
+				}
+				
+				if (this.lastMessageCount >= this.myMessages.size() ) {
+					this.lastMessageCount = this.myMessages.size() - 1;
+				}
+			}
+			
+			
 		});
 		
 		//Bindings
@@ -231,6 +261,8 @@ public class ClientView extends BorderPane {
 		if (!this.message.getText().isEmpty()) {
 			this.message.getStyleClass().remove("empty-message");
 			this.client.tell(new BroadcastSendingRequestMsg(new ChatMsg(this.message.getText())), ActorRef.noSender());
+			this.myMessages.add(this.message.getText());
+			this.lastMessageCount = this.myMessages.size() - 1;
 			this.message.clear();
 		} else {
 			this.message.getStyleClass().add("empty-message");
@@ -248,12 +280,7 @@ public class ClientView extends BorderPane {
 		
 		//Check if it's OK
 		if (!this.username.getText().isEmpty()) {
-			//Generate system and actor
-			final File file = new File("src/main/java/pcd/ass03/chat/client.conf");
-			final Config config = ConfigFactory.parseFile(file);
-			this.system = ActorSystem.create("ClientSystem", config);
-			this.client = system.actorOf(ClientActor.props(this.username.getText()), "client");
-			
+			this.client = system.actorOf(ClientActor.props(this.username.getText()), "client");		
 			return true;
 		} else {
 			this.username.getStyleClass().add("empty-message");
@@ -261,19 +288,14 @@ public class ClientView extends BorderPane {
 		}
 	}
 	
-	/**
+	/*
 	 * Permit to destroy the client actor
-	 * @return
-	 * 		TRUE if destroy was successful
 	 */
-	private boolean destroyActor() {
+	private void destroyActor() {
 		if (this.system != null) {
 			if (this.client != null) {
 				this.system.stop(this.client);
-				return true;
 			}
 		}
-		
-		return false;
 	}
 }
