@@ -9,7 +9,6 @@
 <?import javafx.scene.control.TextField?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ProgressBar?>
 <?import pcd.ass03.gameoflife.view.MiniMap?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.control.Slider?>
@@ -54,15 +53,10 @@
 			<Button prefWidth="$defaultWidth" fx:id="stop" disable="true">Stop</Button>
 			<Button prefWidth="$defaultWidth" fx:id="reset" disable="true">Reset</Button>
 		</VBox>
-		<!--
-		<VBox fx:id="loadingStatus">
-			  <ProgressBar prefWidth="$defaultWidth" fx:id="progress"></ProgressBar>
-		</VBox>-->
 	</VBox>
 	
 	<!-- MiniMap -->
 	<VBox>
-		<ProgressBar prefWidth="$defaultWidth" fx:id="progress"></ProgressBar>
 		<Pane fx:id="miniMapContainer" id="miniMapContainer">
 			<MiniMap fx:id="miniMap" width="$defaultWidth" height="$defaultWidth"></MiniMap>
 		</Pane>
