@@ -8,7 +8,6 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.Pane;
@@ -26,7 +25,6 @@ public class MenuPanel extends VBox {
 	@FXML private Label currentPosition, viewableCells, generation, elapsedTime, aliveCells, errorLabel, sliderValue, avgElapsedTime;
 	@FXML private Button start, stop, reset;
 	@FXML private VBox loadingStatus;
-	@FXML private ProgressBar progress;
 	@FXML private Slider slider;
 	
 	private ActorRef gridActor, viewActor;

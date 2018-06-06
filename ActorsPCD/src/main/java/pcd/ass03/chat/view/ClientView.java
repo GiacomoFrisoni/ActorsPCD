@@ -1,9 +1,7 @@
 package pcd.ass03.chat.view;
 
-import java.io.File;
-
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
+import java.util.ArrayList;
+import java.util.List;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -37,6 +35,9 @@ public class ClientView extends BorderPane {
 	private final Stage stage;
 	private ActorRef client;
 	private ActorSystem system;
+	private List<String> myMessages = new ArrayList<>();
+	private int lastMessageCount = 0;
+	private boolean isLastMessageActivated = false;
 	 
 	@FXML private TextField username, message;
 	@FXML private Button login, send;
@@ -49,9 +50,9 @@ public class ClientView extends BorderPane {
 	 * @param stage
 	 * 		primaryStage passed from the start main method
 	 */
-	public ClientView(final Stage stage) {
+	public ClientView(final Stage stage, final ActorSystem system) {
 		this.stage = stage;
-		
+		this.system = system;
 		this.loadView();
 		this.setDimensions();	
 		this.setActionListeners();
@@ -112,12 +113,13 @@ public class ClientView extends BorderPane {
 	 * Set the view to pre-login status
 	 */
 	private void setStatusToStart() {
+		this.enableLoading(false, LOGIN);
 		Platform.runLater(() -> {
+			ViewDataManager.getInstance().clear();
 			this.username.setDisable(false);
-			this.enableLoading(false);
-			this.login.setText(LOGIN);
 			this.message.setDisable(true);
 			this.send.setDisable(true);
+			this.username.requestFocus();
 		});		
 	}
 	
@@ -125,9 +127,9 @@ public class ClientView extends BorderPane {
 	 * Disable all controls to check if it can log in
 	 */
 	private void setStatusToLogginIn() {
+		this.enableLoading(true, LOADING);
 		Platform.runLater(() -> {
 			this.username.setDisable(true);
-			this.enableLoading(true);
 			this.message.setDisable(true);
 			this.send.setDisable(true);
 		});
@@ -137,20 +139,22 @@ public class ClientView extends BorderPane {
 	 * Login was succesfull, enable the chat
 	 */
 	private void setStatusToActive() {
+		this.enableLoading(false, LOGOUT);	
 		Platform.runLater(() -> {
 			this.username.setDisable(true);
-			this.enableLoading(false);
-			this.login.setText(LOGOUT);
 			this.message.setDisable(false);
 			this.send.setDisable(false);
+			this.message.requestFocus();
 		});
 	}
 	
-	private void enableLoading(final boolean enable) {
-		this.login.setDisable(enable);
-		this.login.setText(LOADING);
-		this.progress.setVisible(enable);
-		this.progress.setManaged(enable);
+	private void enableLoading(final boolean enable, final String buttonMessage) {
+		Platform.runLater(() -> {
+			this.login.setDisable(enable);
+			this.login.setText(buttonMessage);
+			this.progress.setVisible(enable);
+			this.progress.setManaged(enable);
+		});
 	}
 	
 	/**
@@ -161,17 +165,18 @@ public class ClientView extends BorderPane {
 	}
 	
 	private void checkLoginLogout() {	
-		this.enableLoading(true);
+		this.enableLoading(true, LOADING);
 		new Thread(() -> {
 			if (!ViewDataManager.getInstance().isLoggedInProperty().get()) {
 				if (this.createActor()) {
 					this.setStatusToLogginIn();
+				} else {
+					this.setStatusToStart();
 				}
 				
 			} else {
-				if (this.destroyActor()) {
-					this.setStatusToLogginOut();
-				}			
+				this.destroyActor();
+				this.setStatusToLogginOut();				
 			}
 		}).start();
 	}
@@ -184,26 +189,36 @@ public class ClientView extends BorderPane {
 		
 		//Action for login button
 		this.login.setOnMouseClicked(e -> {
-			checkLoginLogout();
+			this.checkLoginLogout();
 		});
 		
 		//Action when pressing ENTER in username
 		this.username.setOnKeyPressed(e -> {
 			if (e.getCode().equals(KeyCode.ENTER)) {
-				checkLoginLogout();
+				this.checkLoginLogout();
 			}
 		});
 		
 		
 		//Action for send button
 		this.send.setOnMouseClicked(e -> {
-			sendMessage();
+			this.sendMessage();
 		});
 		
-		//Action when pressing ENTER in messagebox
+		//Action when pressing ENTER or UP in messagebox
 		this.message.setOnKeyPressed(e -> {
-			if (e.getCode().equals(KeyCode.ENTER)) {
-				sendMessage();
+			switch (e.getCode()) {
+			case ENTER: 
+				this.sendMessage();	
+				break;
+			case UP: 
+				this.getLastMessage(true);		
+				break;
+			case DOWN: 
+				this.getLastMessage(false);
+				break;
+			default:
+				break;
 			}
 		});
 		
@@ -231,6 +246,9 @@ public class ClientView extends BorderPane {
 		if (!this.message.getText().isEmpty()) {
 			this.message.getStyleClass().remove("empty-message");
 			this.client.tell(new BroadcastSendingRequestMsg(new ChatMsg(this.message.getText())), ActorRef.noSender());
+			this.myMessages.add(this.message.getText());
+			this.lastMessageCount = this.myMessages.size() - 1;
+			this.isLastMessageActivated = false;
 			this.message.clear();
 		} else {
 			this.message.getStyleClass().add("empty-message");
@@ -248,12 +266,7 @@ public class ClientView extends BorderPane {
 		
 		//Check if it's OK
 		if (!this.username.getText().isEmpty()) {
-			//Generate system and actor
-			final File file = new File("src/main/java/pcd/ass03/chat/client.conf");
-			final Config config = ConfigFactory.parseFile(file);
-			this.system = ActorSystem.create("ClientSystem", config);
-			this.client = system.actorOf(ClientActor.props(this.username.getText()), "client");
-			
+			this.client = system.actorOf(ClientActor.props(this.username.getText()), "client");		
 			return true;
 		} else {
 			this.username.getStyleClass().add("empty-message");
@@ -261,19 +274,42 @@ public class ClientView extends BorderPane {
 		}
 	}
 	
-	/**
+	/*
 	 * Permit to destroy the client actor
-	 * @return
-	 * 		TRUE if destroy was successful
 	 */
-	private boolean destroyActor() {
+	private void destroyActor() {
 		if (this.system != null) {
 			if (this.client != null) {
 				this.system.stop(this.client);
-				return true;
 			}
 		}
-		
-		return false;
+	}
+	
+	private void getLastMessage(final boolean isToDecrease) {
+		if (!this.myMessages.isEmpty()) {
+			// If I don't activate yet the last message
+			if (!isLastMessageActivated) {
+				//I just get the last message and tell that's now active
+				this.message.setText(myMessages.get(this.lastMessageCount));
+				this.isLastMessageActivated = true;
+			} else {
+				if (isToDecrease) {
+					//If there's something behind current element
+					if (this.lastMessageCount > 0) {	
+						//Go behind
+						this.lastMessageCount--;
+					}
+				} else {
+					//If there's something behind current element
+					if (this.lastMessageCount < (this.myMessages.size() - 1) ) {	
+						//Go behind
+						this.lastMessageCount++;
+					}
+				}
+				
+				//Show the new element
+				this.message.setText(myMessages.get(this.lastMessageCount));
+			}
+		}
 	}
 }
