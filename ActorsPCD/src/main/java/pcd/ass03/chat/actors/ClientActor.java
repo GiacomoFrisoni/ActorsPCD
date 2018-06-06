@@ -304,13 +304,7 @@ public class ClientActor extends AbstractActorWithStash {
 		if (this.myts != Integer.MAX_VALUE) {
 			if (this.nCsEnteringAcks == this.csConsentsRefsExpected.size()) {
 				this.isInCriticalSection = true;
-				
-				//Check for configuration of timeout
-				if (TIMEOUT_MODE.equals(TimeoutMode.INACTIVITY_TIMEOUT)) {
-					getContext().setReceiveTimeout(Duration.create(CS_TIMEOUT, TimeUnit.MILLISECONDS));
-				} else {
-					this.scheduler.tell(new SchedulerActor.StartSchedulerMsg(), ActorRef.noSender());
-				}
+				this.resetTimeout();
 			}
 		}
 	}
@@ -322,7 +316,7 @@ public class ClientActor extends AbstractActorWithStash {
 	private void exitFromCriticalSection(final ActorRef sender) {
 		if (this.isInCriticalSection && sender.equals(getSelf())) {
 			// Turns the timeout off
-			getContext().setReceiveTimeout(Duration.Undefined());
+			this.resetTimeout();
 			// Resets the time-stamp and the state variables
 			this.myts = Integer.MAX_VALUE;
 			this.isInCriticalSection = false;
@@ -483,6 +477,15 @@ public class ClientActor extends AbstractActorWithStash {
 			return true;
 		}
 		return false;
+	}
+	
+	private void resetTimeout() {
+		//Check for configuration of timeout
+		if (TIMEOUT_MODE.equals(TimeoutMode.INACTIVITY_TIMEOUT)) {
+			getContext().setReceiveTimeout(Duration.create(CS_TIMEOUT, TimeUnit.MILLISECONDS));
+		} else {
+			this.scheduler.tell(new SchedulerActor.StartSchedulerMsg(), ActorRef.noSender());
+		}
 	}
 	
 	@Override
