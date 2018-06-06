@@ -37,6 +37,7 @@ public class ClientView extends BorderPane {
 	private ActorSystem system;
 	private List<String> myMessages = new ArrayList<>();
 	private int lastMessageCount = 0;
+	private boolean isLastMessageActivated = false;
 	 
 	@FXML private TextField username, message;
 	@FXML private Button login, send;
@@ -169,6 +170,8 @@ public class ClientView extends BorderPane {
 			if (!ViewDataManager.getInstance().isLoggedInProperty().get()) {
 				if (this.createActor()) {
 					this.setStatusToLogginIn();
+				} else {
+					this.setStatusToStart();
 				}
 				
 			} else {
@@ -186,53 +189,37 @@ public class ClientView extends BorderPane {
 		
 		//Action for login button
 		this.login.setOnMouseClicked(e -> {
-			checkLoginLogout();
+			this.checkLoginLogout();
 		});
 		
 		//Action when pressing ENTER in username
 		this.username.setOnKeyPressed(e -> {
 			if (e.getCode().equals(KeyCode.ENTER)) {
-				checkLoginLogout();
+				this.checkLoginLogout();
 			}
 		});
 		
 		
 		//Action for send button
 		this.send.setOnMouseClicked(e -> {
-			sendMessage();
+			this.sendMessage();
 		});
 		
 		//Action when pressing ENTER or UP in messagebox
 		this.message.setOnKeyPressed(e -> {
-			if (e.getCode().equals(KeyCode.ENTER)) {
-				sendMessage();
+			switch (e.getCode()) {
+			case ENTER: 
+				this.sendMessage();	
+				break;
+			case UP: 
+				this.getLastMessage(true);		
+				break;
+			case DOWN: 
+				this.getLastMessage(false);
+				break;
+			default:
+				break;
 			}
-					
-			if (e.getCode().equals(KeyCode.UP)) {
-				if (!this.myMessages.isEmpty()) {
-					if (this.lastMessageCount < myMessages.size() && this.lastMessageCount >= 0) {
-						this.message.setText(myMessages.get(this.lastMessageCount--));
-					}
-				}
-				
-				if (this.lastMessageCount < 0) {
-					this.lastMessageCount = 0;
-				}
-			}
-			
-			if (e.getCode().equals(KeyCode.DOWN)) {
-				if (!this.myMessages.isEmpty()) {
-					if (this.lastMessageCount < myMessages.size() && this.lastMessageCount >= 0) {
-						this.message.setText(myMessages.get(this.lastMessageCount++));
-					}
-				}
-				
-				if (this.lastMessageCount >= this.myMessages.size() ) {
-					this.lastMessageCount = this.myMessages.size() - 1;
-				}
-			}
-			
-			
 		});
 		
 		//Bindings
@@ -261,6 +248,7 @@ public class ClientView extends BorderPane {
 			this.client.tell(new BroadcastSendingRequestMsg(new ChatMsg(this.message.getText())), ActorRef.noSender());
 			this.myMessages.add(this.message.getText());
 			this.lastMessageCount = this.myMessages.size() - 1;
+			this.isLastMessageActivated = false;
 			this.message.clear();
 		} else {
 			this.message.getStyleClass().add("empty-message");
@@ -293,6 +281,34 @@ public class ClientView extends BorderPane {
 		if (this.system != null) {
 			if (this.client != null) {
 				this.system.stop(this.client);
+			}
+		}
+	}
+	
+	private void getLastMessage(final boolean isToDecrease) {
+		if (!this.myMessages.isEmpty()) {
+			// If I don't activate yet the last message
+			if (!isLastMessageActivated) {
+				//I just get the last message and tell that's now active
+				this.message.setText(myMessages.get(this.lastMessageCount));
+				this.isLastMessageActivated = true;
+			} else {
+				if (isToDecrease) {
+					//If there's something behind current element
+					if (this.lastMessageCount > 0) {	
+						//Go behind
+						this.lastMessageCount--;
+					}
+				} else {
+					//If there's something behind current element
+					if (this.lastMessageCount < (this.myMessages.size() - 1) ) {	
+						//Go behind
+						this.lastMessageCount++;
+					}
+				}
+				
+				//Show the new element
+				this.message.setText(myMessages.get(this.lastMessageCount));
 			}
 		}
 	}
