@@ -204,6 +204,7 @@ public class GridActor extends AbstractActorWithStash {
 								}
 							})
 							.match(InitGridMsg.class, msg -> stash())
+							.matchAny(msg -> log.info("Received unknown message: " + msg))
 							.build(), false);
 				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
@@ -256,6 +257,7 @@ public class GridActor extends AbstractActorWithStash {
 								}
 							})
 							.match(InitGridMsg.class, msg -> stash())
+							.matchAny(msg -> log.info("Received unknown message: " + msg))
 							.build(), false);
 				})
 				.matchAny(msg -> log.info("Received unknown message: " + msg))
