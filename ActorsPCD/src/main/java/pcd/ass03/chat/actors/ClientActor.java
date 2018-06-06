@@ -408,9 +408,10 @@ public class ClientActor extends AbstractActorWithStash {
 				} else {
 					// Shows the normal message
 					ViewDataManager.getInstance().addMessage(this.clients.get(message.getSender()), chatMsg.getContent());
-				}
+				}		
+			} 
 			// Register is informing me that a new client is joining the chat!
-			} else if (broadcastMsg instanceof NewLoggedInClientMsg) {
+			else if (broadcastMsg instanceof NewLoggedInClientMsg) {
 				// Adds the logged-in client into the clients list
 				final NewLoggedInClientMsg loginMsg = (NewLoggedInClientMsg)broadcastMsg;
 				this.clients.put(loginMsg.getClientRef(), loginMsg.getUsername());
