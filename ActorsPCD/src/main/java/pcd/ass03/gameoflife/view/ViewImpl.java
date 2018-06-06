@@ -80,18 +80,7 @@ public class ViewImpl extends BorderPane implements View {
 	}
 
 	@Override
-	public void setStarted() {
-		this.menuPanel.setStarted();
-	}
-
-	@Override
-	public void setStopped() {
-		this.menuPanel.setStopped();
-	}
-
-	@Override
 	public void reset() {
-		this.menuPanel.reset();
 		this.cellMapViewer.reset();
 	}
 	

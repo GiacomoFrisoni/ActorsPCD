@@ -82,27 +82,6 @@ public class MenuPanel extends VBox {
 	}
 	
 	/**
-	 * Reset the menu panel
-	 */
-	public void reset() {
-		
-	}
-	
-	/**
-	 * Set as stopped the state of menu panel
-	 */
-	public void setStopped() {
-		
-	}
-	
-	/**
-	 * Set as started the state of menu panel
-	 */
-	public void setStarted() {
-		
-	}
-	
-	/**
 	 * Set the limits of the minimap, when the map dimension is known
 	 * @param x
 	 * 		X limit of the minimap (width)

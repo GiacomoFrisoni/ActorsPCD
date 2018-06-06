@@ -13,7 +13,5 @@ public interface View {
 	void setViewActor(ActorRef  viewActor);
 	
 	void drawCells(Map<Point, Boolean> cells);
-	void setStarted();
-	void setStopped();
 	void reset();
 }
