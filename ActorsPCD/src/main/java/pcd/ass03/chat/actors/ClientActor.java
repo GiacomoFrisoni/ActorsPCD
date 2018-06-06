@@ -47,11 +47,18 @@ import scala.concurrent.duration.Duration;
  */
 public class ClientActor extends AbstractActorWithStash {
 	
+	public enum TimeoutMode {
+		SCHEDULED_TIMEOUT, INACTIVITY_TIMEOUT
+	}
+	
 	private static final String ENTER_CS_MESSAGE = ":enter-cs";
 	private static final String EXIT_CS_MESSAGE = ":exit-cs";
 	private static final long CS_TIMEOUT = 10000L;
+	
+	private static final TimeoutMode TIMEOUT_MODE = TimeoutMode.SCHEDULED_TIMEOUT;
 
 	private final ActorSelection registerRef;
+	private ActorRef scheduler;
 	
 	private final String username;
 	private int nArrivedExistingClientsStates;
@@ -229,6 +236,13 @@ public class ClientActor extends AbstractActorWithStash {
 					// Tells to all the lost of the mutual exclusion from the current client
 					sendToAll(new LostMutualExclusionMsg());
 				})
+				// Received a timeout from scheduler, I'm too long in cs
+				.match(SchedulerActor.TimeoutMsg.class, msg -> {
+					// Turns the timeout off
+					this.scheduler.tell(new SchedulerActor.StopSchedulerMsg(), ActorRef.noSender());
+					// Tells to all the lost of the mutual exclusion from the current client
+					sendToAll(new LostMutualExclusionMsg());
+				})
 				.matchAny(msg -> this.log.info("Received unknown message: " + msg))
 				.build();
 	}
@@ -290,7 +304,13 @@ public class ClientActor extends AbstractActorWithStash {
 		if (this.myts != Integer.MAX_VALUE) {
 			if (this.nCsEnteringAcks == this.csConsentsRefsExpected.size()) {
 				this.isInCriticalSection = true;
-				getContext().setReceiveTimeout(Duration.create(CS_TIMEOUT, TimeUnit.MILLISECONDS));
+				
+				//Check for configuration of timeout
+				if (TIMEOUT_MODE.equals(TimeoutMode.INACTIVITY_TIMEOUT)) {
+					getContext().setReceiveTimeout(Duration.create(CS_TIMEOUT, TimeUnit.MILLISECONDS));
+				} else {
+					this.scheduler.tell(new SchedulerActor.StartSchedulerMsg(), ActorRef.noSender());
+				}
 			}
 		}
 	}
@@ -462,6 +482,12 @@ public class ClientActor extends AbstractActorWithStash {
 			return true;
 		}
 		return false;
+	}
+	
+	@Override
+	public void preStart() {
+		// Creates the scheduler actor
+		this.scheduler = getContext().actorOf(SchedulerActor.props(getSelf()), "scheduler");
 	}
 	
 	@Override
