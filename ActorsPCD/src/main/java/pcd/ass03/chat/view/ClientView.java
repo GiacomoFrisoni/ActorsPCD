@@ -66,7 +66,7 @@ public class ClientView extends BorderPane {
 		this.stage.show();
 	}
 	
-	/**
+	/*
 	 * Load the .fxml file associated with view
 	 */
 	private void loadView() {
@@ -97,7 +97,7 @@ public class ClientView extends BorderPane {
         }
 	}
 	
-	/**
+	/*
 	 * Set the correct dimension of the view
 	 */
 	private void setDimensions() {
@@ -109,7 +109,7 @@ public class ClientView extends BorderPane {
     	this.stage.setMinHeight(HEIGHT);
 	}
 	
-	/**
+	/*
 	 * Set the view to pre-login status
 	 */
 	private void setStatusToStart() {
@@ -123,7 +123,7 @@ public class ClientView extends BorderPane {
 		});		
 	}
 	
-	/**
+	/*
 	 * Disable all controls to check if it can log in
 	 */
 	private void setStatusToLogginIn() {
@@ -135,8 +135,8 @@ public class ClientView extends BorderPane {
 		});
 	}
 	
-	/**
-	 * Login was succesfull, enable the chat
+	/*
+	 * Login was successful, enable the chat
 	 */
 	private void setStatusToActive() {
 		this.enableLoading(false, LOGOUT);	
@@ -148,6 +148,20 @@ public class ClientView extends BorderPane {
 		});
 	}
 	
+	/*
+	 * Disable all controls to check if it can log out
+	 */
+	private void setStatusToLogginOut() {
+		this.setStatusToLogginIn();
+	}
+	
+	/*
+	 * Helper method for enabling the loading status
+	 * @param enable
+	 * 		TRUE: loading is enabled
+	 * @param buttonMessage
+	 * 		String representing the message on the button
+	 */
 	private void enableLoading(final boolean enable, final String buttonMessage) {
 		Platform.runLater(() -> {
 			this.login.setDisable(enable);
@@ -156,13 +170,7 @@ public class ClientView extends BorderPane {
 			this.progress.setManaged(enable);
 		});
 	}
-	
-	/**
-	 * Disable all controls to check if it can log out
-	 */
-	private void setStatusToLogginOut() {
-		this.setStatusToLogginIn();
-	}
+
 	
 	private void checkLoginLogout() {	
 		this.enableLoading(true, LOADING);
@@ -182,7 +190,7 @@ public class ClientView extends BorderPane {
 	}
 	
 	
-	/**
+	/*
 	 * Set all the action listners and bindings for the view
 	 */
 	private void setActionListeners() {
@@ -197,8 +205,7 @@ public class ClientView extends BorderPane {
 			if (e.getCode().equals(KeyCode.ENTER)) {
 				this.checkLoginLogout();
 			}
-		});
-		
+		});		
 		
 		//Action for send button
 		this.send.setOnMouseClicked(e -> {
@@ -239,7 +246,7 @@ public class ClientView extends BorderPane {
 	}
 
 	
-	/**
+	/*
 	 * Method that send a message to client
 	 */
 	private void sendMessage() {
@@ -255,7 +262,7 @@ public class ClientView extends BorderPane {
 		}
 	}
 	
-	/**
+	/*
 	 * Permit to create a new client actor
 	 * @return
 	 * 		TRUE if creation was successful
